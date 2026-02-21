@@ -40,3 +40,29 @@ export const vendorSpecsService = {
         await Promise.all(entries.map(([key, value]) => vendorSpecsService.set(key, value)))
     }
 }
+
+export const projectService = {
+    async getAll() {
+        return db.projects.orderBy('updatedAt').reverse().toArray()
+    },
+    async getById(id) {
+        return db.projects.get(id)
+    },
+    async save(project) {
+        const existing = project.id ? await db.projects.get(project.id) : null
+        if (existing) {
+            return db.projects.update(project.id, {
+                ...project,
+                updatedAt: Date.now()
+            })
+        }
+        return db.projects.add({
+            ...project,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        })
+    },
+    async delete(id) {
+        return db.projects.delete(id)
+    }
+}

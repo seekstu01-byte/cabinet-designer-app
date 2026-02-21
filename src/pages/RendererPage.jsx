@@ -20,15 +20,35 @@ export default function RendererPage({ toast }) {
     const [result, setResult] = useState(null)
     const [hasSketch, setHasSketch] = useState(false)
     const [materials, setMaterials] = useState({})
+    const [cabinetConfig, setCabinetConfig] = useState(null)
+    const [sketchThumb, setSketchThumb] = useState(null)
+    const [promptText, setPromptText] = useState('')
+    const [showPrompt, setShowPrompt] = useState(false)
+    const [history, setHistory] = useState([])
 
     useEffect(() => {
         const sketch = sessionStorage.getItem('cabinet_sketch')
         const mats = sessionStorage.getItem('cabinet_materials')
+        const config = sessionStorage.getItem('cabinet_config')
         setHasSketch(!!sketch)
+        if (sketch) setSketchThumb(`data:image/jpeg;base64,${sketch}`)
         if (mats) {
             try { setMaterials(JSON.parse(mats)) } catch { /* ok */ }
         }
+        if (config) {
+            try { setCabinetConfig(JSON.parse(config)) } catch { /* ok */ }
+        }
     }, [])
+
+    // Rebuild prompt when settings change
+    useEffect(() => {
+        async function rebuildPrompt() {
+            const vendorSpecs = await vendorSpecsService.getAll()
+            const prompt = buildPrompt({ cabinets: cabinetConfig?.cabinets, materials, vendorSpecs, environment })
+            setPromptText(prompt)
+        }
+        rebuildPrompt()
+    }, [materials, environment, cabinetConfig])
 
     const handleRender = async () => {
         const apiKey = localStorage.getItem('gemini_api_key')
@@ -47,14 +67,18 @@ export default function RendererPage({ toast }) {
         setResult(null)
 
         try {
-            const vendorSpecs = await vendorSpecsService.getAll()
-            const prompt = buildPrompt({ materials, vendorSpecs, environment })
             const res = await generateCabinetRender({
                 apiKey,
                 imageBase64: sketchBase64,
-                prompt
+                prompt: promptText
             })
             setResult(res)
+            // Add to history (keep last 3)
+            setHistory(prev => [{
+                imageData: res.imageData,
+                mimeType: res.mimeType,
+                timestamp: Date.now()
+            }, ...prev].slice(0, 3))
             toast('🎨 渲染完成！', 'success')
         } catch (err) {
             toast(`渲染失敗：${err.message}`, 'error')
@@ -63,29 +87,63 @@ export default function RendererPage({ toast }) {
         }
     }
 
-    const downloadResult = () => {
-        if (!result) return
+    const downloadResult = (res) => {
+        if (!res) return
         const link = document.createElement('a')
         link.download = `cabinet-render-${Date.now()}.jpg`
-        link.href = `data:${result.mimeType};base64,${result.imageData}`
+        link.href = `data:${res.mimeType};base64,${res.imageData}`
         link.click()
+    }
+
+    const copyPrompt = () => {
+        navigator.clipboard.writeText(promptText).then(() => {
+            toast('📋 Prompt 已複製到剪貼簿', 'success')
+        }).catch(() => {
+            toast('複製失敗', 'error')
+        })
     }
 
     return (
         <div className="renderer-layout">
             {/* Controls */}
             <div className="renderer-controls">
-                <div className="section-title">線稿狀態</div>
-                <div style={{
-                    padding: '10px 14px', borderRadius: 'var(--radius)',
-                    background: hasSketch ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                    border: `1px solid ${hasSketch ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
-                    fontSize: 13, marginBottom: 16,
-                    color: hasSketch ? 'var(--success)' : 'var(--danger)'
-                }}>
-                    {hasSketch ? '✅ 線稿已載入，可以渲染' : '⚠️ 尚未有線稿，請先到編輯器匯出'}
-                </div>
+                {/* Sketch preview */}
+                <div className="section-title" style={{ marginTop: 0 }}>線稿預覽</div>
+                {sketchThumb ? (
+                    <div style={{
+                        borderRadius: 'var(--radius)', overflow: 'hidden',
+                        border: '1px solid var(--border)', marginBottom: 16
+                    }}>
+                        <img
+                            src={sketchThumb}
+                            alt="線稿預覽"
+                            style={{ width: '100%', display: 'block', background: 'var(--bg-base)' }}
+                        />
+                        <div style={{
+                            padding: '6px 10px', fontSize: 11, color: 'var(--success)',
+                            background: 'rgba(16,185,129,0.06)'
+                        }}>
+                            ✅ 線稿已載入
+                            {cabinetConfig && (
+                                <span style={{ marginLeft: 6, color: 'var(--text-muted)' }}>
+                                    {cabinetConfig.cabinets?.length || 1} 個櫃體
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div style={{
+                        padding: '10px 14px', borderRadius: 'var(--radius)',
+                        background: 'rgba(239,68,68,0.1)',
+                        border: '1px solid rgba(239,68,68,0.3)',
+                        fontSize: 13, marginBottom: 16,
+                        color: 'var(--danger)'
+                    }}>
+                        ⚠️ 尚未有線稿，請先到編輯器匯出
+                    </div>
+                )}
 
+                {/* Material summary */}
                 {Object.keys(materials).some(k => materials[k]) && (
                     <>
                         <div className="section-title">已選材質</div>
@@ -134,6 +192,32 @@ export default function RendererPage({ toast }) {
                     ))}
                 </div>
 
+                {/* Prompt preview */}
+                <div className="section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>AI Prompt</span>
+                    <button
+                        className="btn btn-sm btn-secondary"
+                        style={{ fontSize: 11, padding: '2px 8px' }}
+                        onClick={() => setShowPrompt(p => !p)}
+                    >
+                        {showPrompt ? '收合' : '展開'}
+                    </button>
+                </div>
+                {showPrompt && (
+                    <div style={{
+                        background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius)', padding: 12, marginBottom: 12,
+                        fontSize: 12, lineHeight: 1.6, color: 'var(--text-secondary)',
+                        maxHeight: 200, overflowY: 'auto', whiteSpace: 'pre-wrap',
+                        fontFamily: 'monospace'
+                    }}>
+                        {promptText}
+                    </div>
+                )}
+                <button className="btn btn-secondary btn-sm" style={{ width: '100%', marginBottom: 12 }} onClick={copyPrompt}>
+                    📋 複製 Prompt
+                </button>
+
                 <button
                     className="btn btn-primary btn-lg"
                     style={{ width: '100%' }}
@@ -144,7 +228,7 @@ export default function RendererPage({ toast }) {
                 </button>
 
                 {result && (
-                    <button className="btn btn-secondary" style={{ width: '100%', marginTop: 10 }} onClick={downloadResult}>
+                    <button className="btn btn-secondary" style={{ width: '100%', marginTop: 10 }} onClick={() => downloadResult(result)}>
                         ⬇️ 下載效果圖
                     </button>
                 )}
@@ -156,6 +240,7 @@ export default function RendererPage({ toast }) {
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
                         <div className="spinner" />
                         <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Gemini 渲染中，請稍候...</p>
+                        <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>通常需要 10-30 秒</p>
                     </div>
                 )}
 
@@ -171,7 +256,7 @@ export default function RendererPage({ toast }) {
 
                 {result && !loading && (
                     <div className="render-result">
-                        <div style={{ display: 'flex', align: 'center', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span className="badge badge-green">✓ 渲染完成</span>
                             <span className="badge badge-purple">Gemini 2.0</span>
                         </div>
@@ -182,6 +267,38 @@ export default function RendererPage({ toast }) {
                         <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                             由 Gemini 2.0 Flash Experimental 生成
                         </p>
+                    </div>
+                )}
+
+                {/* Render history */}
+                {history.length > 1 && (
+                    <div style={{ width: '100%', maxWidth: 640 }}>
+                        <div className="section-title">渲染歷史</div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            {history.slice(1).map((h, i) => (
+                                <div
+                                    key={h.timestamp}
+                                    style={{
+                                        flex: 1, borderRadius: 'var(--radius)', overflow: 'hidden',
+                                        border: '1px solid var(--border)', cursor: 'pointer'
+                                    }}
+                                    onClick={() => downloadResult(h)}
+                                    title="點擊下載"
+                                >
+                                    <img
+                                        src={`data:${h.mimeType};base64,${h.imageData}`}
+                                        alt={`歷史 ${i + 1}`}
+                                        style={{ width: '100%', display: 'block' }}
+                                    />
+                                    <div style={{
+                                        padding: '4px 6px', fontSize: 10, color: 'var(--text-muted)',
+                                        background: 'var(--bg-surface)', textAlign: 'center'
+                                    }}>
+                                        {new Date(h.timestamp).toLocaleTimeString('zh-TW')}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
