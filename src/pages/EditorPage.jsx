@@ -10,7 +10,7 @@ const FLOOR_H_PX = 32
 const PAD = { top: 20, left: 50, right: 40, bottom: 20 }
 
 const ACCESSORY_TYPES = [
-    { type: 'shelf', label: '層板', icon: '━', color: '#64748b' },
+    { type: 'shelf', label: '層板', icon: '━', color: '#4b5563' },
     { type: 'drawer', label: '抽屜', icon: '▬', color: '#8b5cf6' },
     { type: 'door-left', label: '左開門', icon: '🚪', color: '#3b82f6' },
     { type: 'door-right', label: '右開門', icon: '🚪', color: '#2563eb' },
@@ -44,15 +44,12 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
     canvas.style.height = sceneH + 'px'
     ctx.scale(dpr, dpr)
 
-    // Background
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, sceneH)
-    bgGrad.addColorStop(0, '#0f1729')
-    bgGrad.addColorStop(1, '#162032')
-    ctx.fillStyle = bgGrad
+    // Background — light
+    ctx.fillStyle = '#f8f9fb'
     ctx.fillRect(0, 0, sceneW, sceneH)
 
     // Wall texture (subtle)
-    ctx.fillStyle = 'rgba(255,255,255,0.008)'
+    ctx.fillStyle = 'rgba(0,0,0,0.018)'
     for (let y = PAD.top + CEILING_H_PX; y < sceneH - FLOOR_H_PX - PAD.bottom; y += 16) {
         ctx.fillRect(0, y, sceneW, 1)
     }
@@ -62,16 +59,16 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
 
     // ─── Ceiling ───
     const ceilGrad = ctx.createLinearGradient(0, ceilingY, 0, ceilingY + CEILING_H_PX)
-    ceilGrad.addColorStop(0, '#2a3548')
-    ceilGrad.addColorStop(1, '#1e2a3a')
+    ceilGrad.addColorStop(0, '#e2e5ea')
+    ceilGrad.addColorStop(1, '#d1d5db')
     ctx.fillStyle = ceilGrad
     ctx.fillRect(PAD.left - 20, ceilingY, totalCabW + totalGaps + 40, CEILING_H_PX)
-    ctx.strokeStyle = '#3d4f65'
+    ctx.strokeStyle = '#c0c5cc'
     ctx.lineWidth = 1
     ctx.strokeRect(PAD.left - 20, ceilingY, totalCabW + totalGaps + 40, CEILING_H_PX)
 
     // Ceiling label
-    ctx.fillStyle = '#4a6080'
+    ctx.fillStyle = '#6b7280'
     ctx.font = '10px Inter, sans-serif'
     ctx.textAlign = 'center'
     ctx.fillText('天花板', PAD.left + (totalCabW + totalGaps) / 2, ceilingY + 14)
@@ -85,12 +82,12 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         ctx.fillStyle = floorDef.colors[ci]
         ctx.fillRect(x, floorY, stripW - 1, FLOOR_H_PX)
     }
-    ctx.strokeStyle = '#4a6080'
+    ctx.strokeStyle = 'rgba(0,0,0,0.1)'
     ctx.lineWidth = 0.5
     ctx.strokeRect(PAD.left - 20, floorY, totalCabW + totalGaps + 40, FLOOR_H_PX)
 
     // Floor label
-    ctx.fillStyle = 'rgba(255,255,255,0.5)'
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'
     ctx.font = '9px Inter, sans-serif'
     ctx.textAlign = 'center'
     ctx.fillText(floorDef.label, PAD.left + (totalCabW + totalGaps) / 2, floorY + FLOOR_H_PX / 2 + 3)
@@ -108,7 +105,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         const spotX = xOff + cw / 2
         const spotY = ceilingY + CEILING_H_PX
         const coneGrad = ctx.createRadialGradient(spotX, spotY, 2, spotX, spotY + 60, 80)
-        coneGrad.addColorStop(0, 'rgba(251,191,36,0.12)')
+        coneGrad.addColorStop(0, 'rgba(251,191,36,0.15)')
         coneGrad.addColorStop(1, 'rgba(251,191,36,0)')
         ctx.fillStyle = coneGrad
         ctx.beginPath()
@@ -131,11 +128,11 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
 
         // ─── Cabinet body ───
         // Back fill
-        ctx.fillStyle = isSelected ? 'rgba(59,130,246,0.06)' : 'rgba(255,255,255,0.015)'
+        ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.04)' : 'rgba(0,0,0,0.015)'
         ctx.fillRect(xOff + PANEL_T, cy + PANEL_T, cw - PANEL_T * 2, ch - PANEL_T - KICK_H)
 
         // Left panel
-        ctx.fillStyle = isSelected ? '#2563eb' : '#334155'
+        ctx.fillStyle = isSelected ? '#2563eb' : '#6b7280'
         ctx.fillRect(xOff, cy, PANEL_T, ch - KICK_H)
         // Right panel
         ctx.fillRect(xOff + cw - PANEL_T, cy, PANEL_T, ch - KICK_H)
@@ -145,17 +142,17 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         ctx.fillRect(xOff, cy + ch - KICK_H - PANEL_T, cw, PANEL_T)
 
         // Kick plate
-        ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.3)' : 'rgba(51,65,85,0.5)'
+        ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.12)' : 'rgba(0,0,0,0.06)'
         ctx.fillRect(xOff + 10, cy + ch - KICK_H, cw - 20, KICK_H)
-        ctx.strokeStyle = isSelected ? '#2563eb' : '#475569'
+        ctx.strokeStyle = isSelected ? '#2563eb' : '#9ca3af'
         ctx.lineWidth = 0.5
         ctx.strokeRect(xOff + 10, cy + ch - KICK_H, cw - 20, KICK_H)
 
         // Selection glow
         if (isSelected) {
-            ctx.shadowColor = 'rgba(59,130,246,0.3)'
+            ctx.shadowColor = 'rgba(37,99,235,0.25)'
             ctx.shadowBlur = 12
-            ctx.strokeStyle = '#3b82f6'
+            ctx.strokeStyle = '#2563eb'
             ctx.lineWidth = 2
             ctx.strokeRect(xOff - 1, cy - 1, cw + 2, ch + 2)
             ctx.shadowBlur = 0
@@ -173,24 +170,24 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
             const isAccSel = acc.id === selectedAccId
 
             if (isAccSel) {
-                ctx.shadowColor = 'rgba(139,92,246,0.4)'
+                ctx.shadowColor = 'rgba(124,58,237,0.3)'
                 ctx.shadowBlur = 8
             }
 
             switch (acc.type) {
                 case 'shelf': {
-                    ctx.fillStyle = isAccSel ? '#94a3b8' : '#64748b'
+                    ctx.fillStyle = isAccSel ? '#374151' : '#6b7280'
                     ctx.fillRect(innerX, ay - 2, innerW, 4)
                     // shelf brackets
-                    ctx.fillStyle = '#475569'
+                    ctx.fillStyle = '#9ca3af'
                     ctx.fillRect(innerX + 6, ay - 6, 3, 8)
                     ctx.fillRect(innerX + innerW - 9, ay - 6, 3, 8)
                     break
                 }
                 case 'drawer': {
                     const dh = Math.max(ah, 16)
-                    ctx.fillStyle = isAccSel ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.08)'
-                    ctx.strokeStyle = isAccSel ? '#a78bfa' : '#8b5cf6'
+                    ctx.fillStyle = isAccSel ? 'rgba(124,58,237,0.12)' : 'rgba(124,58,237,0.06)'
+                    ctx.strokeStyle = isAccSel ? '#7c3aed' : '#8b5cf6'
                     ctx.lineWidth = 1.5
                     ctx.beginPath()
                     ctx.roundRect(innerX + 2, ay, innerW - 4, dh, 2)
@@ -198,7 +195,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                     ctx.stroke()
                     // handle
                     const handleY = ay + dh / 2
-                    ctx.strokeStyle = isAccSel ? '#c4b5fd' : '#a78bfa'
+                    ctx.strokeStyle = isAccSel ? '#6d28d9' : '#7c3aed'
                     ctx.lineWidth = 2
                     ctx.beginPath()
                     ctx.moveTo(innerX + innerW * 0.35, handleY)
@@ -209,8 +206,8 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                 case 'door-left':
                 case 'door-right': {
                     const isLeft = acc.type === 'door-left'
-                    ctx.fillStyle = isAccSel ? 'rgba(59,130,246,0.1)' : 'rgba(59,130,246,0.04)'
-                    ctx.strokeStyle = isAccSel ? '#60a5fa' : '#3b82f6'
+                    ctx.fillStyle = isAccSel ? 'rgba(37,99,235,0.08)' : 'rgba(37,99,235,0.03)'
+                    ctx.strokeStyle = isAccSel ? '#2563eb' : '#3b82f6'
                     ctx.lineWidth = 1.5
                     ctx.beginPath()
                     ctx.roundRect(innerX + 2, innerTop, innerW - 4, innerH, 2)
@@ -218,7 +215,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                     ctx.stroke()
                     // handle
                     const hx = isLeft ? innerX + innerW - 14 : innerX + 8
-                    ctx.strokeStyle = isAccSel ? '#93c5fd' : '#60a5fa'
+                    ctx.strokeStyle = isAccSel ? '#1d4ed8' : '#2563eb'
                     ctx.lineWidth = 2.5
                     ctx.beginPath()
                     ctx.moveTo(hx, innerTop + innerH * 0.42)
@@ -226,7 +223,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                     ctx.stroke()
                     // hinge dots
                     const hingeX = isLeft ? innerX + 6 : innerX + innerW - 8
-                    ctx.fillStyle = '#475569'
+                    ctx.fillStyle = '#9ca3af'
                     ctx.beginPath()
                     ctx.arc(hingeX, innerTop + 16, 2, 0, Math.PI * 2)
                     ctx.fill()
@@ -236,14 +233,14 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                     break
                 }
                 case 'hanging-rod': {
-                    ctx.strokeStyle = isAccSel ? '#fcd34d' : '#f59e0b'
+                    ctx.strokeStyle = isAccSel ? '#d97706' : '#f59e0b'
                     ctx.lineWidth = 3
                     ctx.beginPath()
                     ctx.moveTo(innerX + 10, ay)
                     ctx.lineTo(innerX + innerW - 10, ay)
                     ctx.stroke()
                     // brackets
-                    ctx.strokeStyle = '#64748b'
+                    ctx.strokeStyle = '#9ca3af'
                     ctx.lineWidth = 1.5
                     ctx.beginPath()
                     ctx.moveTo(innerX + 10, ay)
@@ -279,7 +276,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         })
 
         // ─── Dimension labels ───
-        ctx.fillStyle = '#64748b'
+        ctx.fillStyle = '#6b7280'
         ctx.font = '11px Inter, sans-serif'
         ctx.textAlign = 'center'
 
@@ -290,14 +287,14 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         ctx.save()
         ctx.translate(xOff + cw + 18, cy + (ch - KICK_H) / 2)
         ctx.rotate(-Math.PI / 2)
-        ctx.fillStyle = '#4a6080'
+        ctx.fillStyle = '#6b7280'
         ctx.font = '10px Inter, sans-serif'
         ctx.textAlign = 'center'
         ctx.fillText(`${cab.height}cm`, 0, 0)
         ctx.restore()
 
         // Cabinet index
-        ctx.fillStyle = '#334155'
+        ctx.fillStyle = '#9ca3af'
         ctx.font = '10px Inter'
         ctx.textAlign = 'center'
         ctx.fillText(`#${idx + 1}`, xOff + cw / 2, cy + ch + 14)
@@ -317,7 +314,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
     ctx.save()
     ctx.translate(16, cabinetTopY + (ceilingH * SCALE) / 2)
     ctx.rotate(-Math.PI / 2)
-    ctx.fillStyle = '#4a6080'
+    ctx.fillStyle = '#6b7280'
     ctx.font = '10px Inter'
     ctx.textAlign = 'center'
     ctx.fillText(`天花板高 ${ceilingH}cm`, 0, 0)
@@ -338,16 +335,16 @@ function drawDimLine(ctx, x1, y, x2, y2, label) {
     ctx.lineTo(x2, y)
     ctx.stroke()
     // Label
-    ctx.fillStyle = '#94a3b8'
+    ctx.fillStyle = '#6b7280'
     ctx.font = '11px Inter, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     const midX = (x1 + x2) / 2
     // White bg for readability
     const tw = ctx.measureText(label).width
-    ctx.fillStyle = '#0f1729'
+    ctx.fillStyle = '#f8f9fb'
     ctx.fillRect(midX - tw / 2 - 4, y - 7, tw + 8, 14)
-    ctx.fillStyle = '#94a3b8'
+    ctx.fillStyle = '#6b7280'
     ctx.fillText(label, midX, y)
     ctx.textBaseline = 'alphabetic'
 }
