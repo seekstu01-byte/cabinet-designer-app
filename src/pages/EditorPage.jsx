@@ -141,12 +141,12 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         // Bottom panel (above kick)
         ctx.fillRect(xOff, cy + ch - KICK_H - PANEL_T, cw, PANEL_T)
 
-        // Kick plate
+        // Kick plate (Full width, no inset)
         ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.12)' : 'rgba(0,0,0,0.06)'
-        ctx.fillRect(xOff + 10, cy + ch - KICK_H, cw - 20, KICK_H)
+        ctx.fillRect(xOff, cy + ch - KICK_H, cw, KICK_H)
         ctx.strokeStyle = isSelected ? '#2563eb' : '#9ca3af'
-        ctx.lineWidth = 0.5
-        ctx.strokeRect(xOff + 10, cy + ch - KICK_H, cw - 20, KICK_H)
+        ctx.lineWidth = 1
+        ctx.strokeRect(xOff, cy + ch - KICK_H, cw, KICK_H)
 
         // Selection glow
         if (isSelected) {
@@ -176,8 +176,11 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
 
             switch (acc.type) {
                 case 'shelf': {
+                    ctx.setLineDash([4, 4])
                     ctx.fillStyle = isAccSel ? '#374151' : '#6b7280'
                     ctx.fillRect(innerX, ay - 2, innerW, 4)
+                    ctx.setLineDash([])
+
                     // shelf brackets
                     ctx.fillStyle = '#9ca3af'
                     ctx.fillRect(innerX + 6, ay - 6, 3, 8)
@@ -186,13 +189,16 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                 }
                 case 'drawer': {
                     const dh = Math.max(ah, 16)
+                    ctx.setLineDash([4, 4])
                     ctx.fillStyle = isAccSel ? 'rgba(124,58,237,0.12)' : 'rgba(124,58,237,0.06)'
                     ctx.strokeStyle = isAccSel ? '#7c3aed' : '#8b5cf6'
-                    ctx.lineWidth = 1.5
+                    ctx.lineWidth = 1
                     ctx.beginPath()
                     ctx.roundRect(innerX + 2, ay, innerW - 4, dh, 2)
                     ctx.fill()
                     ctx.stroke()
+                    ctx.setLineDash([])
+
                     // handle
                     const handleY = ay + dh / 2
                     ctx.strokeStyle = isAccSel ? '#6d28d9' : '#7c3aed'
@@ -206,23 +212,26 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                 case 'door-left':
                 case 'door-right': {
                     const isLeft = acc.type === 'door-left'
+                    const doorW = (acc.width !== undefined ? acc.width : cab.width) * SCALE - PANEL_T * 2
+                    const doorX = isLeft ? innerX + 2 : innerX + innerW - doorW - 2
+
                     ctx.fillStyle = isAccSel ? 'rgba(37,99,235,0.08)' : 'rgba(37,99,235,0.03)'
                     ctx.strokeStyle = isAccSel ? '#2563eb' : '#3b82f6'
-                    ctx.lineWidth = 1.5
+                    ctx.lineWidth = 1
                     ctx.beginPath()
-                    ctx.roundRect(innerX + 2, innerTop, innerW - 4, innerH, 2)
+                    ctx.roundRect(doorX, innerTop, doorW, innerH, 2)
                     ctx.fill()
                     ctx.stroke()
                     // handle
-                    const hx = isLeft ? innerX + innerW - 14 : innerX + 8
+                    const hx = isLeft ? doorX + doorW - 14 : doorX + 14
                     ctx.strokeStyle = isAccSel ? '#1d4ed8' : '#2563eb'
-                    ctx.lineWidth = 2.5
+                    ctx.lineWidth = 2
                     ctx.beginPath()
                     ctx.moveTo(hx, innerTop + innerH * 0.42)
                     ctx.lineTo(hx, innerTop + innerH * 0.58)
                     ctx.stroke()
                     // hinge dots
-                    const hingeX = isLeft ? innerX + 6 : innerX + innerW - 8
+                    const hingeX = isLeft ? doorX + 6 : doorX + doorW - 6
                     ctx.fillStyle = '#9ca3af'
                     ctx.beginPath()
                     ctx.arc(hingeX, innerTop + 16, 2, 0, Math.PI * 2)
@@ -233,15 +242,18 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                     break
                 }
                 case 'hanging-rod': {
+                    ctx.setLineDash([2, 4])
                     ctx.strokeStyle = isAccSel ? '#d97706' : '#f59e0b'
-                    ctx.lineWidth = 3
+                    ctx.lineWidth = 2
                     ctx.beginPath()
                     ctx.moveTo(innerX + 10, ay)
                     ctx.lineTo(innerX + innerW - 10, ay)
                     ctx.stroke()
+                    ctx.setLineDash([])
+
                     // brackets
                     ctx.strokeStyle = '#9ca3af'
-                    ctx.lineWidth = 1.5
+                    ctx.lineWidth = 1
                     ctx.beginPath()
                     ctx.moveTo(innerX + 10, ay)
                     ctx.lineTo(innerX + 10, ay - 10)
@@ -293,7 +305,13 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         ctx.fillText(`${cab.height}cm`, 0, 0)
         ctx.restore()
 
-        // Cabinet index
+        // Cabinet custom name
+        ctx.fillStyle = '#111827'
+        ctx.font = 'bold 12px Inter'
+        ctx.textAlign = 'center'
+        ctx.fillText(cab.name || `櫃體 #${idx + 1}`, xOff + cw / 2, cy - 8)
+
+        // Cabinet index (bottom)
         ctx.fillStyle = '#9ca3af'
         ctx.font = '10px Inter'
         ctx.textAlign = 'center'
@@ -385,7 +403,7 @@ export default function EditorPage({ toast }) {
     useEffect(() => { redraw() }, [redraw])
 
     const addCabinet = () => {
-        const newCab = { id: uid(), width: 60, height: 220, accessories: [] }
+        const newCab = { id: uid(), name: `櫃體 ${cabinets.length + 1}`, width: 60, height: 220, accessories: [] }
         setCabinets(prev => [...prev, newCab])
         setSelectedIdx(cabinets.length)
         setSelectedAccId(null)
@@ -409,10 +427,10 @@ export default function EditorPage({ toast }) {
         const defaults = {
             'shelf': { type: 'shelf', y: cab.height / 2, height: 2, x: 0 },
             'drawer': { type: 'drawer', y: cab.height * 0.7, height: 20, x: 0 },
-            'door-left': { type: 'door-left', y: 0, height: cab.height, x: 0 },
-            'door-right': { type: 'door-right', y: 0, height: cab.height, x: 0 },
+            'door-left': { type: 'door-left', y: 0, height: cab.height, x: 0, width: cab.width },
+            'door-right': { type: 'door-right', y: 0, height: cab.height, x: 0, width: cab.width },
             'hanging-rod': { type: 'hanging-rod', y: cab.height * 0.35, height: 4, x: 0 },
-            'led': { type: 'led', y: 8, height: 2, x: 0 },
+            'led': { type: 'led', y: 8, height: 2, x: 0, placement: 'top' },
             'divider': { type: 'divider', y: 0, height: cab.height, x: cab.width / 2 },
         }
         const acc = { id: uid(), ...defaults[type] }
@@ -441,16 +459,19 @@ export default function EditorPage({ toast }) {
         if (selectedAccId === accId) setSelectedAccId(null)
     }
 
-    const saveProject = async () => {
+    const saveProject = async (saveAsNew = false) => {
         try {
             const data = { cabinets, ceilingH, floorType, materials }
             const newId = await projectService.save({
-                ...(projectId ? { id: projectId } : {}),
-                name: projectName,
+                ...((projectId && !saveAsNew) ? { id: projectId } : {}),
+                name: saveAsNew ? `${projectName} (複製)` : projectName,
                 data
             })
-            if (newId) setProjectId(newId)
-            toast('💾 專案已儲存', 'success')
+            if (newId) {
+                setProjectId(newId)
+                if (saveAsNew) setProjectName(`${projectName} (複製)`)
+            }
+            toast(saveAsNew ? '💾 另存專案成功' : '💾 專案已儲存', 'success')
         } catch {
             toast('儲存失敗', 'error')
         }
@@ -536,6 +557,19 @@ export default function EditorPage({ toast }) {
                         <input type="range" min="200" max="300" value={ceilingH} onChange={e => setCeilingH(Number(e.target.value))} />
                     </div>
                     {cab && <>
+                        <div className="slider-group" style={{ marginBottom: 12 }}>
+                            <div className="slider-label">
+                                <span>櫃體名稱</span>
+                            </div>
+                            <input
+                                type="text"
+                                className="form-input"
+                                value={cab.name || ''}
+                                onChange={e => updateCabinet('name', e.target.value)}
+                                style={{ width: '100%', fontSize: 13, padding: '4px 8px' }}
+                                placeholder="例：衣櫃 A"
+                            />
+                        </div>
                         <div className="slider-group">
                             <div className="slider-label">
                                 <span>寬度</span>
@@ -630,6 +664,34 @@ export default function EditorPage({ toast }) {
                                 style={{ accentColor: accDef?.color }}
                             />
                         </div>
+                        {selAcc.type === 'led' && (
+                            <div className="form-group" style={{ marginBottom: 16 }}>
+                                <label className="form-label" style={{ fontSize: 12 }}>燈條貼附位置</label>
+                                <select
+                                    className="form-select"
+                                    style={{ fontSize: 13, padding: '4px 8px' }}
+                                    value={selAcc.placement || 'top'}
+                                    onChange={e => updateAccessory(selAcc.id, 'placement', e.target.value)}
+                                >
+                                    <option value="top">上方 (Top)</option>
+                                    <option value="bottom">下方 (Bottom)</option>
+                                    <option value="left">左側 (Left)</option>
+                                    <option value="right">右側 (Right)</option>
+                                </select>
+                            </div>
+                        )}
+                        {(selAcc.type === 'door-left' || selAcc.type === 'door-right') && (
+                            <div className="slider-group">
+                                <div className="slider-label">
+                                    <span>門片寬度</span>
+                                    <span className="slider-value">{Math.round(selAcc.width !== undefined ? selAcc.width : cab.width)} cm</span>
+                                </div>
+                                <input type="range" min="10" max={cab.width} value={selAcc.width !== undefined ? selAcc.width : cab.width}
+                                    onChange={e => updateAccessory(selAcc.id, 'width', e.target.value)}
+                                    style={{ accentColor: accDef?.color }}
+                                />
+                            </div>
+                        )}
                         {selAcc.type === 'divider' ? (
                             <div className="slider-group">
                                 <div className="slider-label">
@@ -725,8 +787,11 @@ export default function EditorPage({ toast }) {
                             onChange={e => setProjectName(e.target.value)}
                             style={{ width: 140, padding: '4px 8px', fontSize: 13, background: 'var(--bg-elevated)' }}
                         />
-                        <button className="btn btn-sm btn-primary" onClick={saveProject} style={{ padding: '4px 10px', fontSize: 12 }}>
+                        <button className="btn btn-sm btn-primary" onClick={() => saveProject(false)} style={{ padding: '4px 10px', fontSize: 12 }}>
                             💾 儲存
+                        </button>
+                        <button className="btn btn-sm btn-secondary" onClick={() => saveProject(true)} style={{ padding: '4px 10px', fontSize: 12 }} title="另存為新專案">
+                            ⭐ 另存新檔
                         </button>
                         <button className="btn btn-sm btn-secondary" onClick={openLoadModal} style={{ padding: '4px 10px', fontSize: 12 }}>
                             📂 載入

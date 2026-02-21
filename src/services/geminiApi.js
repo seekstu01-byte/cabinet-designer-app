@@ -122,7 +122,7 @@ export function buildPrompt({ cabinets, materials, vendorSpecs, environment }) {
         cabinetDesc = '系統櫃（詳見線稿圖）\n'
     }
 
-    let prompt = `根據這張系統櫃線稿圖，渲染成高品質的室內效果圖。
+    let prompt = `根據這張系統櫃正立面線稿圖，渲染成高品質的室內設計效果圖。
 
 櫃體配置：
 ${cabinetDesc}
@@ -132,8 +132,14 @@ ${cabinetDesc}
 - 天花板：白色平面天花板
 - 燈光：每個櫃體上方一顆投射燈，色溫 ${lightTemp}
 - 地板：${floorText}
-視角：正面視角
-風格：現代簡約，寫實室內設計，高品質渲染，室內設計效果圖，8K 清晰`
+視角：絕對正立面視角 (Front Orthographic View)
+狀態：${environment?.doorState === 'open' ? '櫃門全部打開或隱藏，清楚顯示內部層板、抽屜與掛衣桿配置。' : '櫃門全部關閉，只顯示外部門片與抽屜面板外觀。'}
+風格：現代簡約，室內設計效果圖，寫實光影
+
+⛔ 嚴格限制與禁止項目 (CRITICAL RULES)：
+1. 嚴格遵守原始線稿的尺寸外框與物理比例，絕對不可改變櫃體數量或寬高比例。
+2. 絕對不可無中生有！禁止加入任何線稿中不存在的裝飾品、盆栽、花瓶、書籍、衣物、擺件等。
+3. 嚴格保持畫面乾淨整潔，畫面中只允許存在櫃體本身、天花板、地板與背景牆面。`
 
     if (notesText) {
         prompt += `\n\n補充說明：${notesText}`

@@ -15,7 +15,7 @@ const LIGHT_TEMPS = [
 ]
 
 export default function RendererPage({ toast }) {
-    const [environment, setEnvironment] = useState({ floor: 'wood-light', lightTemp: '4000K' })
+    const [environment, setEnvironment] = useState({ floor: 'wood-light', lightTemp: '4000K', doorState: 'closed' })
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState(null)
     const [hasSketch, setHasSketch] = useState(false)
@@ -190,6 +190,36 @@ export default function RendererPage({ toast }) {
                             {l.value}
                         </button>
                     ))}
+                </div>
+
+                <div className="section-title">櫃門狀態</div>
+                <div className="radio-group" style={{ marginBottom: 16 }}>
+                    <label className={`radio-option ${environment.doorState === 'closed' ? 'active' : ''}`} style={environment.doorState === 'closed' ? { background: 'rgba(37,99,235,0.08)', borderColor: 'var(--accent)' } : {}}>
+                        <input
+                            type="radio"
+                            name="doorState"
+                            value="closed"
+                            checked={environment.doorState === 'closed'}
+                            onChange={e => setEnvironment(prev => ({ ...prev, doorState: e.target.value }))}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: 13, fontWeight: 500 }}>🚪 關門 (外觀)</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>維持原本門片顯示狀態</span>
+                        </div>
+                    </label>
+                    <label className={`radio-option ${environment.doorState === 'open' ? 'active' : ''}`} style={environment.doorState === 'open' ? { background: 'rgba(37,99,235,0.08)', borderColor: 'var(--accent)' } : {}}>
+                        <input
+                            type="radio"
+                            name="doorState"
+                            value="open"
+                            checked={environment.doorState === 'open'}
+                            onChange={e => setEnvironment(prev => ({ ...prev, doorState: e.target.value }))}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: 13, fontWeight: 500 }}>📖 開門 (內部)</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>優先渲染內部層板與配件</span>
+                        </div>
+                    </label>
                 </div>
 
                 {/* Prompt preview */}
