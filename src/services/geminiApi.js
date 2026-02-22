@@ -43,21 +43,26 @@ export async function generateCabinetRender({ apiKey, imageBase64, prompt }) {
 
     const data = await response.json()
 
-    // Extract image from response
+    // Extract image from response — handle both camelCase and snake_case keys
     const candidates = data?.candidates || []
     for (const candidate of candidates) {
         const resParts = candidate?.content?.parts || []
         for (const part of resParts) {
-            if (part.inline_data?.mime_type?.startsWith('image/')) {
-                return {
-                    imageData: part.inline_data.data,
-                    mimeType: part.inline_data.mime_type
+            // Gemini API returns camelCase (inlineData) in REST responses
+            const imgData = part.inlineData || part.inline_data
+            if (imgData) {
+                const mime = imgData.mimeType || imgData.mime_type
+                if (mime?.startsWith('image/')) {
+                    return {
+                        imageData: imgData.data,
+                        mimeType: mime
+                    }
                 }
             }
         }
     }
 
-    throw new Error('Gemini 未回傳圖片，請調整 Prompt 或使用 Gemini 2.0 Flash Experimental 模型')
+    throw new Error('Gemini 未回傳圖片，請調整 Prompt 再試一次')
 }
 
 const ACC_LABELS = {
