@@ -78,7 +78,7 @@ export default function RendererPage({ toast }) {
                 imageData: res.imageData,
                 mimeType: res.mimeType,
                 timestamp: Date.now()
-            }, ...prev].slice(0, 3))
+            }, ...prev].slice(0, 5))
             toast('🎨 渲染完成！', 'success')
         } catch (err) {
             toast(`渲染失敗：${err.message}`, 'error')
@@ -288,14 +288,19 @@ export default function RendererPage({ toast }) {
                     <div className="render-result">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span className="badge badge-green">✓ 渲染完成</span>
-                            <span className="badge badge-purple">Gemini 2.0</span>
+                            <span className="badge badge-purple">Banana Pro</span>
                         </div>
                         <img
                             src={`data:${result.mimeType};base64,${result.imageData}`}
                             alt="AI 渲染效果圖"
                         />
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                            由 Gemini 2.0 Flash Experimental 生成
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            <button className="btn btn-primary btn-sm" onClick={() => downloadResult(result)} style={{ flex: 1 }}>
+                                ⬇️ 另存效果圖
+                            </button>
+                        </div>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                            由 Gemini 3 Pro Image (Banana Pro) 生成
                         </p>
                     </div>
                 )}
@@ -303,17 +308,15 @@ export default function RendererPage({ toast }) {
                 {/* Render history */}
                 {history.length > 1 && (
                     <div style={{ width: '100%', maxWidth: 640 }}>
-                        <div className="section-title">渲染歷史</div>
-                        <div style={{ display: 'flex', gap: 8 }}>
+                        <div className="section-title">渲染歷史（最近 5 張）</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
                             {history.slice(1).map((h, i) => (
                                 <div
                                     key={h.timestamp}
                                     style={{
-                                        flex: 1, borderRadius: 'var(--radius)', overflow: 'hidden',
-                                        border: '1px solid var(--border)', cursor: 'pointer'
+                                        borderRadius: 'var(--radius)', overflow: 'hidden',
+                                        border: '1px solid var(--border)', background: 'var(--bg-surface)'
                                     }}
-                                    onClick={() => downloadResult(h)}
-                                    title="點擊下載"
                                 >
                                     <img
                                         src={`data:${h.mimeType};base64,${h.imageData}`}
@@ -321,10 +324,19 @@ export default function RendererPage({ toast }) {
                                         style={{ width: '100%', display: 'block' }}
                                     />
                                     <div style={{
-                                        padding: '4px 6px', fontSize: 10, color: 'var(--text-muted)',
-                                        background: 'var(--bg-surface)', textAlign: 'center'
+                                        padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 4,
+                                        alignItems: 'center'
                                     }}>
-                                        {new Date(h.timestamp).toLocaleTimeString('zh-TW')}
+                                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                                            {new Date(h.timestamp).toLocaleTimeString('zh-TW')}
+                                        </span>
+                                        <button
+                                            className="btn btn-secondary btn-sm"
+                                            style={{ width: '100%', fontSize: 11, padding: '3px 6px' }}
+                                            onClick={() => downloadResult(h)}
+                                        >
+                                            ⬇️ 另存
+                                        </button>
                                     </div>
                                 </div>
                             ))}
