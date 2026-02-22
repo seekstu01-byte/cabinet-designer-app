@@ -2,7 +2,7 @@
  * Gemini API service for AI image generation
  */
 
-const GEMINI_MODEL = 'gemini-2.0-flash-exp'
+const GEMINI_MODEL = 'gemini-2.5-flash-image'
 
 export async function generateCabinetRender({ apiKey, imageBase64, prompt }) {
     if (!apiKey) throw new Error('請先在後台設定 Gemini API Key')
@@ -29,7 +29,6 @@ export async function generateCabinetRender({ apiKey, imageBase64, prompt }) {
         body: JSON.stringify({
             contents: [{ parts }],
             generationConfig: {
-                responseModalities: ['IMAGE', 'TEXT'],
                 temperature: 1,
                 topK: 40,
                 topP: 0.95,
