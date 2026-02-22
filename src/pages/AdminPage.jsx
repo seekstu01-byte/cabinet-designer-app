@@ -93,7 +93,7 @@ export default function AdminPage({ toast }) {
                                 </p>
                             </div>
                             <div style={{ padding: '12px 16px', background: 'rgba(59,130,246,0.08)', borderRadius: 'var(--radius)', marginBottom: 16, fontSize: 13, color: 'var(--text-secondary)' }}>
-                                📌 使用模型：<strong style={{ color: 'var(--accent)' }}>gemini-2.5-flash-image</strong>（支援圖片生成）
+                                📌 使用模型：<strong style={{ color: 'var(--accent)' }}>Gemini 3 Pro Image (Banana Pro)</strong>（支援 4K 圖片生成）
                             </div>
                             <button className="btn btn-primary" onClick={saveApiKey} disabled={!apiKey.trim()}>
                                 💾 儲存 API Key
