@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { textureService, projectService } from '../services/db'
 
 const SCALE = 2.8 // pixels per cm
@@ -127,42 +128,113 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         ctx.fill()
 
         // ─── Cabinet body ───
-        // Back fill
-        ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.04)' : 'rgba(0,0,0,0.015)'
-        ctx.fillRect(xOff + PANEL_T, cy + PANEL_T, cw - PANEL_T * 2, ch - PANEL_T - KICK_H)
+        const isSplit = cab.type === 'split'
+        const floorY = cabinetTopY + ceilingH * SCALE
 
-        // Left panel
-        ctx.fillStyle = isSelected ? '#2563eb' : '#6b7280'
-        ctx.fillRect(xOff, cy, PANEL_T, ch - KICK_H)
-        // Right panel
-        ctx.fillRect(xOff + cw - PANEL_T, cy, PANEL_T, ch - KICK_H)
-        // Top panel
-        ctx.fillRect(xOff, cy, cw, PANEL_T)
-        // Bottom panel (above kick)
-        ctx.fillRect(xOff, cy + ch - KICK_H - PANEL_T, cw, PANEL_T)
+        if (isSplit) {
+            const lowerH = (cab.lowerHeight || 86) * SCALE
+            const upperH = (cab.upperHeight || 80) * SCALE
+            const upperElev = (cab.upperElevation || 150) * SCALE
 
-        // Kick plate (Full width, no inset)
-        ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.12)' : 'rgba(0,0,0,0.06)'
-        ctx.fillRect(xOff, cy + ch - KICK_H, cw, KICK_H)
-        ctx.strokeStyle = isSelected ? '#2563eb' : '#9ca3af'
-        ctx.lineWidth = 1
-        ctx.strokeRect(xOff, cy + ch - KICK_H, cw, KICK_H)
+            // Lower Cabinet
+            const lowerY = floorY - lowerH
+            ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.04)' : 'rgba(0,0,0,0.015)'
+            ctx.fillRect(xOff + PANEL_T, lowerY + PANEL_T, cw - PANEL_T * 2, lowerH - PANEL_T - KICK_H)
 
-        // Selection glow
-        if (isSelected) {
-            ctx.shadowColor = 'rgba(37,99,235,0.25)'
-            ctx.shadowBlur = 12
-            ctx.strokeStyle = '#2563eb'
-            ctx.lineWidth = 2
-            ctx.strokeRect(xOff - 1, cy - 1, cw + 2, ch + 2)
-            ctx.shadowBlur = 0
+            ctx.fillStyle = isSelected ? '#2563eb' : '#6b7280'
+            ctx.fillRect(xOff, lowerY, PANEL_T, lowerH - KICK_H) // L
+            ctx.fillRect(xOff + cw - PANEL_T, lowerY, PANEL_T, lowerH - KICK_H) // R
+            ctx.fillRect(xOff, lowerY, cw, PANEL_T) // T
+            ctx.fillRect(xOff, lowerY + lowerH - KICK_H - PANEL_T, cw, PANEL_T) // B
+
+            // Kick plate
+            ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.12)' : 'rgba(0,0,0,0.06)'
+            ctx.fillRect(xOff, lowerY + lowerH - KICK_H, cw, KICK_H)
+            ctx.strokeStyle = isSelected ? '#2563eb' : '#9ca3af'
+            ctx.lineWidth = 1
+            ctx.strokeRect(xOff, lowerY + lowerH - KICK_H, cw, KICK_H)
+
+            // Upper Cabinet
+            const upperY = floorY - upperElev - upperH
+            ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.04)' : 'rgba(0,0,0,0.015)'
+            ctx.fillRect(xOff + PANEL_T, upperY + PANEL_T, cw - PANEL_T * 2, upperH - PANEL_T * 2)
+
+            ctx.fillStyle = isSelected ? '#2563eb' : '#6b7280'
+            ctx.fillRect(xOff, upperY, PANEL_T, upperH) // L
+            ctx.fillRect(xOff + cw - PANEL_T, upperY, PANEL_T, upperH) // R
+            ctx.fillRect(xOff, upperY, cw, PANEL_T) // T
+            ctx.fillRect(xOff, upperY + upperH - PANEL_T, cw, PANEL_T) // B
+
+            // Backsplash
+            if (cab.hasBacksplash !== false) {
+                const splashY = floorY - upperElev
+                const splashH = upperElev - lowerH
+                ctx.fillStyle = 'rgba(14, 165, 233, 0.05)'
+                ctx.fillRect(xOff, splashY, cw, splashH)
+                ctx.strokeStyle = '#bae6fd'
+                ctx.strokeRect(xOff, splashY, cw, splashH)
+                ctx.strokeStyle = 'rgba(14, 165, 233, 0.2)'
+                ctx.beginPath()
+                ctx.moveTo(xOff + 10, splashY + splashH - 10)
+                ctx.lineTo(xOff + cw - 10, splashY + 10)
+                ctx.stroke()
+            }
+
+            if (isSelected) {
+                ctx.shadowColor = 'rgba(37,99,235,0.25)'
+                ctx.shadowBlur = 12
+                ctx.strokeStyle = '#2563eb'
+                ctx.lineWidth = 2
+                ctx.strokeRect(xOff - 1, upperY - 1, cw + 2, upperH + 2)
+                ctx.strokeRect(xOff - 1, lowerY - 1, cw + 2, lowerH + 2)
+                ctx.shadowBlur = 0
+            }
+        } else {
+            // Back fill
+            ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.04)' : 'rgba(0,0,0,0.015)'
+            ctx.fillRect(xOff + PANEL_T, cy + PANEL_T, cw - PANEL_T * 2, ch - PANEL_T - KICK_H)
+
+            // Left panel
+            ctx.fillStyle = isSelected ? '#2563eb' : '#6b7280'
+            ctx.fillRect(xOff, cy, PANEL_T, ch - KICK_H)
+            // Right panel
+            ctx.fillRect(xOff + cw - PANEL_T, cy, PANEL_T, ch - KICK_H)
+            // Top panel
+            ctx.fillRect(xOff, cy, cw, PANEL_T)
+            // Bottom panel (above kick)
+            ctx.fillRect(xOff, cy + ch - KICK_H - PANEL_T, cw, PANEL_T)
+
+            // Kick plate (Full width, no inset)
+            ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.12)' : 'rgba(0,0,0,0.06)'
+            ctx.fillRect(xOff, cy + ch - KICK_H, cw, KICK_H)
+            ctx.strokeStyle = isSelected ? '#2563eb' : '#9ca3af'
+            ctx.lineWidth = 1
+            ctx.strokeRect(xOff, cy + ch - KICK_H, cw, KICK_H)
+
+            // Selection glow
+            if (isSelected) {
+                ctx.shadowColor = 'rgba(37,99,235,0.25)'
+                ctx.shadowBlur = 12
+                ctx.strokeStyle = '#2563eb'
+                ctx.lineWidth = 2
+                ctx.strokeRect(xOff - 1, cy - 1, cw + 2, ch + 2)
+                ctx.shadowBlur = 0
+            }
         }
 
         // ─── Accessories ───
         const innerX = xOff + PANEL_T
         const innerW = cw - PANEL_T * 2
-        const innerTop = cy + PANEL_T
-        const innerH = ch - PANEL_T * 2 - KICK_H
+
+        let innerTop, innerH
+        if (isSplit) {
+            const totalH = (cab.upperElevation || 150) * SCALE + (cab.upperHeight || 80) * SCALE
+            innerTop = floorY - totalH + PANEL_T
+            innerH = totalH - PANEL_T - KICK_H
+        } else {
+            innerTop = cy + PANEL_T
+            innerH = ch - PANEL_T * 2 - KICK_H
+        }
 
         cab.accessories?.forEach(acc => {
             const ay = innerTop + (acc.y / cab.height) * innerH
@@ -375,13 +447,14 @@ function exportCanvasAsJpeg(canvas) {
 }
 
 export default function EditorPage({ toast }) {
+    const navigate = useNavigate()
     const canvasRef = useRef(null)
     const [ceilingH, setCeilingH] = useState(240)
     const [selectedIdx, setSelectedIdx] = useState(0)
     const [selectedAccId, setSelectedAccId] = useState(null)
     const [floorType, setFloorType] = useState('wood-dark')
     const [cabinets, setCabinets] = useState([
-        { id: 1, width: 60, height: 220, accessories: [] }
+        { id: 1, name: '櫃體 1', width: 60, height: 240, type: 'tall', lowerHeight: 86, upperHeight: 80, upperElevation: 150, hasBacksplash: true, accessories: [] }
     ])
     const [textures, setTextures] = useState([])
     const [materials, setMaterials] = useState({ exterior: '', interior: '', door: '', drawer: '' })
@@ -403,7 +476,7 @@ export default function EditorPage({ toast }) {
     useEffect(() => { redraw() }, [redraw])
 
     const addCabinet = () => {
-        const newCab = { id: uid(), name: `櫃體 ${cabinets.length + 1}`, width: 60, height: 220, accessories: [] }
+        const newCab = { id: uid(), name: `櫃體 ${cabinets.length + 1}`, width: 60, height: 240, type: 'tall', lowerHeight: 86, upperHeight: 80, upperElevation: 150, hasBacksplash: true, accessories: [] }
         setCabinets(prev => [...prev, newCab])
         setSelectedIdx(cabinets.length)
         setSelectedAccId(null)
@@ -417,9 +490,11 @@ export default function EditorPage({ toast }) {
     }
 
     const updateCabinet = (field, value) => {
-        setCabinets(prev => prev.map((c, i) =>
-            i === selectedIdx ? { ...c, [field]: Number(value) } : c
-        ))
+        setCabinets(prev => prev.map((c, i) => {
+            if (i !== selectedIdx) return c
+            const val = (field === 'type' || field === 'name' || typeof value === 'boolean') ? value : Number(value)
+            return { ...c, [field]: val }
+        }))
     }
 
     const addAccessory = (type) => {
@@ -506,7 +581,8 @@ export default function EditorPage({ toast }) {
             sessionStorage.setItem('cabinet_config', JSON.stringify({
                 cabinets, ceilingH, floorType, materials
             }))
-            toast('線稿已匯出，資訊已傳送至 AI 渲染頁', 'success')
+            toast('線稿已匯出，即將前往 AI 渲染頁', 'success')
+            navigate('/renderer')
         }
     }
 
@@ -577,13 +653,53 @@ export default function EditorPage({ toast }) {
                             </div>
                             <input type="range" min="30" max="120" value={cab.width} onChange={e => updateCabinet('width', e.target.value)} />
                         </div>
-                        <div className="slider-group">
+
+                        <div className="slider-group" style={{ marginBottom: 12 }}>
                             <div className="slider-label">
-                                <span>高度</span>
-                                <span className="slider-value">{cab.height} cm</span>
+                                <span>櫃體型式</span>
                             </div>
-                            <input type="range" min="30" max="260" value={cab.height} onChange={e => updateCabinet('height', e.target.value)} />
+                            <div className="radio-group" style={{ marginTop: 4 }}>
+                                <label className="radio-label">
+                                    <input type="radio" value="tall" checked={cab.type !== 'split'} onChange={() => updateCabinet('type', 'tall')} />
+                                    <span>高櫃</span>
+                                </label>
+                                <label className="radio-label">
+                                    <input type="radio" value="split" checked={cab.type === 'split'} onChange={() => updateCabinet('type', 'split')} />
+                                    <span>上下櫃</span>
+                                </label>
+                            </div>
                         </div>
+
+                        {cab.type === 'split' ? (
+                            <>
+                                <div className="slider-group">
+                                    <div className="slider-label"><span>下櫃高度</span><span className="slider-value">{cab.lowerHeight || 86} cm</span></div>
+                                    <input type="range" min="40" max="150" value={cab.lowerHeight || 86} onChange={e => updateCabinet('lowerHeight', e.target.value)} />
+                                </div>
+                                <div className="slider-group">
+                                    <div className="slider-label"><span>吊櫃離地高度</span><span className="slider-value">{cab.upperElevation || 150} cm</span></div>
+                                    <input type="range" min={cab.lowerHeight || 86} max="220" value={cab.upperElevation || 150} onChange={e => updateCabinet('upperElevation', e.target.value)} />
+                                </div>
+                                <div className="slider-group">
+                                    <div className="slider-label"><span>上吊櫃高度</span><span className="slider-value">{cab.upperHeight || 80} cm</span></div>
+                                    <input type="range" min="30" max="150" value={cab.upperHeight || 80} onChange={e => updateCabinet('upperHeight', e.target.value)} />
+                                </div>
+                                <div className="slider-group" style={{ marginTop: 8, marginBottom: 8 }}>
+                                    <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                                        <input type="checkbox" checked={cab.hasBacksplash !== false} onChange={e => updateCabinet('hasBacksplash', e.target.checked)} />
+                                        <span>包含中央玻璃背板</span>
+                                    </label>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="slider-group">
+                                <div className="slider-label">
+                                    <span>櫃體高度</span>
+                                    <span className="slider-value">{cab.height} cm</span>
+                                </div>
+                                <input type="range" min="30" max="260" value={cab.height} onChange={e => updateCabinet('height', e.target.value)} />
+                            </div>
+                        )}
                     </>}
                 </div>
 

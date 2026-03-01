@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import AdminPage from './pages/AdminPage'
 import EditorPage from './pages/EditorPage'
 import RendererPage from './pages/RendererPage'
@@ -14,7 +14,7 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter basename="/cabinet-designer-app">
+    <HashRouter>
       <div className="app-layout">
         <header className="app-header">
           <NavLink to="/editor" className="logo">
@@ -50,6 +50,6 @@ export default function App() {
           <div key={t.id} className={`toast toast-${t.type}`}>{t.msg}</div>
         ))}
       </div>
-    </BrowserRouter>
+    </HashRouter>
   )
 }

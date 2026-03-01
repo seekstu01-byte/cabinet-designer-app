@@ -15,7 +15,7 @@ const LIGHT_TEMPS = [
 ]
 
 export default function RendererPage({ toast }) {
-    const [environment, setEnvironment] = useState({ floor: 'wood-light', lightTemp: '4000K', doorState: 'closed' })
+    const [environment, setEnvironment] = useState({ floor: 'wood-light', lightTemp: '4000K', doorState: 'closed', aspectRatio: '16:9' })
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState(null)
     const [hasSketch, setHasSketch] = useState(false)
@@ -190,6 +190,36 @@ export default function RendererPage({ toast }) {
                             {l.value}
                         </button>
                     ))}
+                </div>
+
+                <div className="section-title">渲染比例</div>
+                <div className="radio-group" style={{ marginBottom: 16 }}>
+                    <label className={`radio-option ${environment.aspectRatio === '16:9' ? 'active' : ''}`} style={environment.aspectRatio === '16:9' ? { background: 'rgba(37,99,235,0.08)', borderColor: 'var(--accent)' } : {}}>
+                        <input
+                            type="radio"
+                            name="aspectRatio"
+                            value="16:9"
+                            checked={environment.aspectRatio === '16:9'}
+                            onChange={e => setEnvironment(prev => ({ ...prev, aspectRatio: e.target.value }))}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: 13, fontWeight: 500 }}>🖥️ 16:9 橫式</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>展示整體寬闊空間感</span>
+                        </div>
+                    </label>
+                    <label className={`radio-option ${environment.aspectRatio === '5:4' ? 'active' : ''}`} style={environment.aspectRatio === '5:4' ? { background: 'rgba(37,99,235,0.08)', borderColor: 'var(--accent)' } : {}}>
+                        <input
+                            type="radio"
+                            name="aspectRatio"
+                            value="5:4"
+                            checked={environment.aspectRatio === '5:4'}
+                            onChange={e => setEnvironment(prev => ({ ...prev, aspectRatio: e.target.value }))}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: 13, fontWeight: 500 }}>🖼️ 5:4 傳統</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>偏向正方形的傳統視角</span>
+                        </div>
+                    </label>
                 </div>
 
                 <div className="section-title">櫃門狀態</div>
