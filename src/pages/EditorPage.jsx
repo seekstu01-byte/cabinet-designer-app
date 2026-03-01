@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { textureService, projectService } from '../services/db'
+import { textureService } from '../services/db'
 
 const SCALE = 2.8 // pixels per cm
 const PANEL_T = 6 // panel thickness in px
@@ -55,7 +55,7 @@ function getAccessoryBounds(cab, acc) {
 function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floorType) {
     const ctx = canvas.getContext('2d')
     const totalCabW = cabinets.reduce((s, c) => s + c.width * SCALE, 0)
-    const gapBetween = 4
+    const gapBetween = 0
     const totalGaps = (cabinets.length - 1) * gapBetween
     const sceneW = PAD.left + totalCabW + totalGaps + PAD.right
     const sceneH = PAD.top + CEILING_H_PX + ceilingH * SCALE + FLOOR_H_PX + PAD.bottom
@@ -117,6 +117,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
 
     // ─── Cabinets ───
     let xOff = PAD.left
+    let sumWidthPrev = 0
 
     cabinets.forEach((cab, idx) => {
         const cw = cab.width * SCALE
@@ -283,6 +284,11 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                     ctx.fillStyle = '#9ca3af'
                     ctx.fillRect(axPx + 6, ay - 6, 3, 8)
                     ctx.fillRect(axPx + awPx - 9, ay - 6, 3, 8)
+
+                    ctx.fillStyle = '#6b7280'
+                    ctx.font = '9px Inter'
+                    ctx.textAlign = 'left'
+                    ctx.fillText(`Y:${Math.round(acc.y * 10)}`, axPx + 2, ay - 8)
                     break
                 }
                 case 'drawer': {
@@ -305,6 +311,13 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                     ctx.moveTo(axPx + awPx * 0.35, handleY)
                     ctx.lineTo(axPx + awPx * 0.65, handleY)
                     ctx.stroke()
+
+                    ctx.fillStyle = '#111827'
+                    ctx.font = '10px Inter'
+                    ctx.textAlign = 'center'
+                    ctx.fillText(`H:${Math.round(acc.height * 10)}`, axPx + awPx / 2, ay + dh / 2 - 8)
+                    ctx.fillStyle = '#6b7280'
+                    ctx.fillText(`Y:${Math.round(acc.y * 10)}`, axPx + awPx / 2, ay + dh / 2 + 16)
                     break
                 }
                 case 'door': {
@@ -404,6 +417,12 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                     ctx.strokeStyle = '#000000'
                     ctx.lineWidth = isAccSel ? 2 : 1
                     ctx.strokeRect(dx - 2, innerTop, 4, innerH)
+
+                    const globalX = (sumWidthPrev + acc.x) * 10
+                    ctx.fillStyle = '#6b7280'
+                    ctx.font = '9px Inter'
+                    ctx.textAlign = 'center'
+                    ctx.fillText(`X:${Math.round(globalX)}`, dx, innerTop - 4)
                     break
                 }
             }
@@ -415,17 +434,17 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         ctx.font = '11px Inter, sans-serif'
         ctx.textAlign = 'center'
 
-        // Width label (top)
-        drawDimLine(ctx, xOff, cy - 14, xOff + cw, cy - 14, `${cab.width}cm`)
+        // Dimensions in mm
+        drawDimLine(ctx, xOff, cy - 14, xOff + cw, cy - 14, `${cab.width * 10} mm`)
 
         // Height label (right)
         ctx.save()
         ctx.translate(xOff + cw + 18, cy + (ch - KICK_H) / 2)
         ctx.rotate(-Math.PI / 2)
-        ctx.fillStyle = '#6b7280'
+        ctx.fillStyle = '#111827'
         ctx.font = '10px Inter, sans-serif'
         ctx.textAlign = 'center'
-        ctx.fillText(`${cab.height}cm`, 0, 0)
+        ctx.fillText(`${cab.height * 10} mm`, 0, 0)
         ctx.restore()
 
         // Cabinet custom name
@@ -440,6 +459,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         ctx.textAlign = 'center'
         ctx.fillText(`#${idx + 1}`, xOff + cw / 2, cy + ch + 14)
 
+        sumWidthPrev += cab.width
         xOff += cw + gapBetween
     })
 
@@ -448,17 +468,17 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         const totalW = cabinets.reduce((s, c) => s + c.width, 0)
         const totalPx = totalCabW + totalGaps
         const dimY = cabinetTopY + ceilingH * SCALE + FLOOR_H_PX + 14
-        drawDimLine(ctx, PAD.left, dimY, PAD.left + totalPx, dimY, `總寬 ${totalW}cm`)
+        drawDimLine(ctx, PAD.left, dimY, PAD.left + totalPx, dimY, `總寬 ${totalW * 10} mm`)
     }
 
     // ─── Ceiling height dimension (left) ───
     ctx.save()
     ctx.translate(16, cabinetTopY + (ceilingH * SCALE) / 2)
     ctx.rotate(-Math.PI / 2)
-    ctx.fillStyle = '#6b7280'
+    ctx.fillStyle = '#111827'
     ctx.font = '10px Inter'
     ctx.textAlign = 'center'
-    ctx.fillText(`天花板高 ${ceilingH}cm`, 0, 0)
+    ctx.fillText(`天花板高 ${ceilingH * 10} mm`, 0, 0)
     ctx.restore()
 }
 
@@ -500,6 +520,8 @@ function exportCanvasAsJpeg(canvas) {
 export default function EditorPage({ toast }) {
     const navigate = useNavigate()
     const canvasRef = useRef(null)
+    const wrapperRef = useRef(null)
+    const [zoom, setZoom] = useState(1)
     const [ceilingH, setCeilingH] = useState(240)
     const [selectedIdx, setSelectedIdx] = useState(0)
     const [selectedAccId, setSelectedAccId] = useState(null)
@@ -510,9 +532,23 @@ export default function EditorPage({ toast }) {
     const [textures, setTextures] = useState([])
     const [materials, setMaterials] = useState({ exterior: '', interior: '', door: '', drawer: '' })
     const [projectName, setProjectName] = useState('未命名專案')
-    const [projectId, setProjectId] = useState(null)
-    const [showLoadModal, setShowLoadModal] = useState(false)
-    const [savedProjects, setSavedProjects] = useState([])
+
+    // Enforce max cabinet height by ceilingH
+    useEffect(() => {
+        setCabinets(prev => prev.map(c => c.height > ceilingH ? { ...c, height: ceilingH } : c))
+    }, [ceilingH])
+
+    // Auto-fit to screen initially and when size drastically changes
+    useEffect(() => {
+        if (!wrapperRef.current) return
+        const totalCabW = cabinets.reduce((s, c) => s + c.width * SCALE, 0)
+        let sceneW = PAD.left + totalCabW + PAD.right
+        let sceneH = PAD.top + CEILING_H_PX + ceilingH * SCALE + FLOOR_H_PX + PAD.bottom
+
+        const rect = wrapperRef.current.getBoundingClientRect()
+        const fitZoom = Math.min(1, (rect.width - 40) / sceneW, (rect.height - 40) / sceneH)
+        setZoom(fitZoom)
+    }, [cabinets.length, ceilingH])
 
     useEffect(() => {
         textureService.getAll().then(setTextures)
@@ -622,52 +658,6 @@ export default function EditorPage({ toast }) {
             i === selectedIdx ? { ...c, accessories: c.accessories.filter(a => a.id !== accId) } : c
         ))
         if (selectedAccId === accId) setSelectedAccId(null)
-    }
-
-    const saveProject = async (saveAsNew = false) => {
-        try {
-            const data = { cabinets, ceilingH, floorType, materials }
-            const newId = await projectService.save({
-                ...((projectId && !saveAsNew) ? { id: projectId } : {}),
-                name: saveAsNew ? `${projectName} (複製)` : projectName,
-                data
-            })
-            if (newId) {
-                setProjectId(newId)
-                if (saveAsNew) setProjectName(`${projectName} (複製)`)
-            }
-            toast(saveAsNew ? '💾 另存專案成功' : '💾 專案已儲存', 'success')
-        } catch {
-            toast('儲存失敗', 'error')
-        }
-    }
-
-    const loadProject = async (proj) => {
-        const d = proj.data
-        if (d.cabinets) {
-            d.cabinets.forEach(cab => {
-                cab.accessories?.forEach(acc => {
-                    if (acc.type === 'door-left') { acc.type = 'door'; acc.hinge = 'left' }
-                    if (acc.type === 'door-right') { acc.type = 'door'; acc.hinge = 'right' }
-                })
-            })
-            setCabinets(d.cabinets)
-        }
-        if (d.ceilingH) setCeilingH(d.ceilingH)
-        if (d.floorType) setFloorType(d.floorType)
-        if (d.materials) setMaterials(d.materials)
-        setProjectName(proj.name)
-        setProjectId(proj.id)
-        setShowLoadModal(false)
-        setSelectedIdx(0)
-        setSelectedAccId(null)
-        toast(`已載入「${proj.name}」`, 'success')
-    }
-
-    const openLoadModal = async () => {
-        const projects = await projectService.getAll()
-        setSavedProjects(projects)
-        setShowLoadModal(true)
     }
 
     const exportJson = () => {
@@ -838,7 +828,11 @@ export default function EditorPage({ toast }) {
                                     <span>櫃體高度</span>
                                     <span className="slider-value">{cab.height} cm</span>
                                 </div>
-                                <input type="range" min="30" max="260" value={cab.height} onChange={e => updateCabinet('height', e.target.value)} />
+                                <input type="range" min="30" max={ceilingH} value={cab.height} onChange={e => {
+                                    let h = Number(e.target.value);
+                                    if (h > ceilingH) h = ceilingH;
+                                    updateCabinet('height', h);
+                                }} />
                             </div>
                         )}
                     </>}
@@ -1059,16 +1053,6 @@ export default function EditorPage({ toast }) {
                             onChange={e => setProjectName(e.target.value)}
                             style={{ width: 140, padding: '4px 8px', fontSize: 13, background: 'var(--bg-elevated)' }}
                         />
-                        <button className="btn btn-sm btn-primary" onClick={() => saveProject(false)} style={{ padding: '4px 10px', fontSize: 12 }}>
-                            💾 儲存
-                        </button>
-                        <button className="btn btn-sm btn-secondary" onClick={() => saveProject(true)} style={{ padding: '4px 10px', fontSize: 12 }} title="另存為新專案">
-                            ⭐ 另存新檔
-                        </button>
-                        <button className="btn btn-sm btn-secondary" onClick={openLoadModal} style={{ padding: '4px 10px', fontSize: 12 }}>
-                            📂 載入
-                        </button>
-                        <div style={{ width: 1, background: 'var(--border)', margin: '0 4px', height: 24 }} />
                         <button className="btn btn-sm btn-secondary" onClick={exportJson} style={{ padding: '4px 10px', fontSize: 12 }}>
                             ⬇️ 匯出
                         </button>
@@ -1076,6 +1060,10 @@ export default function EditorPage({ toast }) {
                             ⬆️ 匯入
                             <input type="file" accept=".json" style={{ display: 'none' }} onChange={importJson} />
                         </label>
+                        <div style={{ width: 1, background: 'var(--border)', margin: '0 4px', height: 24 }} />
+                        <button className="btn btn-sm btn-secondary" onClick={() => setZoom(z => Math.max(0.2, z - 0.2))} style={{ padding: '4px 10px', fontSize: 12 }}>🔍 -</button>
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{Math.round(zoom * 100)}%</span>
+                        <button className="btn btn-sm btn-secondary" onClick={() => setZoom(z => Math.min(3, z + 0.2))} style={{ padding: '4px 10px', fontSize: 12 }}>🔍 +</button>
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 12 }}>
                         {cabinets.length} 個並排 | 天花板 {ceilingH}cm | 總寬 {cabinets.reduce((s, c) => s + c.width, 0)}cm
@@ -1085,72 +1073,29 @@ export default function EditorPage({ toast }) {
                         <span className="badge badge-green">即時預覽</span>
                     </div>
                 </div>
-                <div className="editor-canvas-wrapper">
-                    <canvas
-                        ref={canvasRef}
-                        style={{ borderRadius: 8, boxShadow: 'var(--shadow-lg)', cursor: 'crosshair' }}
-                        onClick={(e) => {
-                            const rect = canvasRef.current.getBoundingClientRect()
-                            const x = e.clientX - rect.left
-                            let xOff = PAD.left
-                            const gapBetween = 4
-                            for (let i = 0; i < cabinets.length; i++) {
-                                const cw = cabinets[i].width * SCALE
-                                if (x >= xOff && x <= xOff + cw) {
-                                    setSelectedIdx(i)
-                                    setSelectedAccId(null)
-                                    break
+                <div className="editor-canvas-wrapper" ref={wrapperRef} style={{ overflow: 'auto', backgroundColor: 'var(--bg-elevated)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+                    <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top center', padding: 40, transition: 'transform 0.1s ease-out' }}>
+                        <canvas
+                            ref={canvasRef}
+                            style={{ borderRadius: 8, boxShadow: 'var(--shadow-lg)', cursor: 'crosshair', background: '#fff' }}
+                            onClick={(e) => {
+                                const x = e.nativeEvent.offsetX
+                                let xOff = PAD.left
+                                const gapBetween = 0
+                                for (let i = 0; i < cabinets.length; i++) {
+                                    const cw = cabinets[i].width * SCALE
+                                    if (x >= xOff && x <= xOff + cw) {
+                                        setSelectedIdx(i)
+                                        setSelectedAccId(null)
+                                        break
+                                    }
+                                    xOff += cw + gapBetween
                                 }
-                                xOff += cw + gapBetween
-                            }
-                        }}
-                    />
-                </div>
-            </div>
-
-            {/* Load modal */}
-            {showLoadModal && (
-                <div style={{
-                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-                }} onClick={() => setShowLoadModal(false)}>
-                    <div className="card" style={{ width: 400, maxHeight: 500, overflowY: 'auto' }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>📂 載入專案</h3>
-                        {savedProjects.length === 0 ? (
-                            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>尚無已儲存的專案</p>
-                        ) : (
-                            savedProjects.map(p => (
-                                <div
-                                    key={p.id}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                        padding: '10px 12px', borderRadius: 'var(--radius)',
-                                        background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-                                        marginBottom: 8, cursor: 'pointer', transition: 'var(--transition)'
-                                    }}
-                                    onClick={() => loadProject(p)}
-                                >
-                                    <div>
-                                        <div style={{ fontSize: 14, fontWeight: 500 }}>{p.name}</div>
-                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                                            {new Date(p.updatedAt).toLocaleString('zh-TW')}
-                                        </div>
-                                    </div>
-                                    <button className="btn btn-danger btn-sm" onClick={async (e) => {
-                                        e.stopPropagation()
-                                        await projectService.delete(p.id)
-                                        setSavedProjects(prev => prev.filter(x => x.id !== p.id))
-                                        toast('已刪除', 'info')
-                                    }}>刪除</button>
-                                </div>
-                            ))
-                        )}
-                        <button className="btn btn-secondary" style={{ width: '100%', marginTop: 8 }} onClick={() => setShowLoadModal(false)}>關閉</button>
+                            }}
+                        />
                     </div>
                 </div>
-            )}
+            </div>
         </div>
     )
 }

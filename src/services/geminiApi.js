@@ -145,7 +145,7 @@ ${cabinetDesc}
 - 天花板：白色平面天花板
 - 燈光：每個櫃體上方一顆投射燈，色溫 ${lightTemp}
 - 地板：${floorText}
-視角：微仰角正立面視角 (Front Orthographic View, strictly low-angle pointing up)，必須確保畫面中完整包含天花板與上面的投射燈具，絕對不可裁切天花板。
+視角：絕對正視圖 (Front Orthographic View, strictly eye-level straight ahead)。相機位置固定在正中央，不要仰角、不要俯角，就是完美的正視 2D 立面感，並確保完整捕捉寬度與高度。
 狀態：${environment?.doorState === 'open' ? '櫃門全部打開或隱藏，清楚顯示內部層板、抽屜與掛衣桿配置。' : '櫃門全部關閉，只顯示外部門片與抽屜面板外觀。'}
 風格：現代簡約，室內設計效果圖，寫實光影
 
