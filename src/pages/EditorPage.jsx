@@ -13,8 +13,7 @@ const PAD = { top: 20, left: 50, right: 40, bottom: 20 }
 const ACCESSORY_TYPES = [
     { type: 'shelf', label: '層板', icon: '━', color: '#4b5563' },
     { type: 'drawer', label: '抽屜', icon: '▬', color: '#8b5cf6' },
-    { type: 'door-left', label: '左開門', icon: '🚪', color: '#3b82f6' },
-    { type: 'door-right', label: '右開門', icon: '🚪', color: '#2563eb' },
+    { type: 'door', label: '門片', icon: '🚪', color: '#3b82f6' },
     { type: 'hanging-rod', label: '掛衣桿', icon: '〡', color: '#f59e0b' },
     { type: 'led', label: 'LED 燈條', icon: '💡', color: '#10b981' },
     { type: 'divider', label: '隔板', icon: '┃', color: '#e879f9' },
@@ -28,6 +27,29 @@ const FLOOR_TYPES = [
 
 let _uid = 0
 const uid = () => `${Date.now()}_${++_uid}`
+
+function getAccessoryBounds(cab, acc) {
+    if (acc.type === 'divider' || acc.type === 'door') {
+        return { x: 0, width: cab.width }
+    }
+    let minX = 0;
+    let maxX = cab.width;
+    const accY = acc.y;
+    const accH = acc.height || 0;
+    const padding = 1; // tolerance
+
+    cab.accessories?.forEach(other => {
+        if (other.type === 'divider' && other.id !== acc.id) {
+            const divY = other.y;
+            const divH = other.height;
+            if (!(accY + accH <= divY + padding || accY >= divY + divH - padding)) {
+                if (other.x <= (acc.x || 0) && other.x > minX) minX = other.x;
+                else if (other.x > (acc.x || 0) && other.x < maxX) maxX = other.x;
+            }
+        }
+    });
+    return { x: minX, width: maxX - minX };
+}
 
 /* ─── Canvas Drawing ─── */
 function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floorType) {
@@ -64,7 +86,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
     ceilGrad.addColorStop(1, '#d1d5db')
     ctx.fillStyle = ceilGrad
     ctx.fillRect(PAD.left - 20, ceilingY, totalCabW + totalGaps + 40, CEILING_H_PX)
-    ctx.strokeStyle = '#c0c5cc'
+    ctx.strokeStyle = '#000000'
     ctx.lineWidth = 1
     ctx.strokeRect(PAD.left - 20, ceilingY, totalCabW + totalGaps + 40, CEILING_H_PX)
 
@@ -83,8 +105,8 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         ctx.fillStyle = floorDef.colors[ci]
         ctx.fillRect(x, floorY, stripW - 1, FLOOR_H_PX)
     }
-    ctx.strokeStyle = 'rgba(0,0,0,0.1)'
-    ctx.lineWidth = 0.5
+    ctx.strokeStyle = '#000000'
+    ctx.lineWidth = 1
     ctx.strokeRect(PAD.left - 20, floorY, totalCabW + totalGaps + 40, FLOOR_H_PX)
 
     // Floor label
@@ -150,7 +172,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
             // Kick plate
             ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.12)' : 'rgba(0,0,0,0.06)'
             ctx.fillRect(xOff, lowerY + lowerH - KICK_H, cw, KICK_H)
-            ctx.strokeStyle = isSelected ? '#2563eb' : '#9ca3af'
+            ctx.strokeStyle = '#000000'
             ctx.lineWidth = 1
             ctx.strokeRect(xOff, lowerY + lowerH - KICK_H, cw, KICK_H)
 
@@ -171,9 +193,9 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                 const splashH = upperElev - lowerH
                 ctx.fillStyle = 'rgba(14, 165, 233, 0.05)'
                 ctx.fillRect(xOff, splashY, cw, splashH)
-                ctx.strokeStyle = '#bae6fd'
+                ctx.strokeStyle = '#000000'
+                ctx.lineWidth = 1
                 ctx.strokeRect(xOff, splashY, cw, splashH)
-                ctx.strokeStyle = 'rgba(14, 165, 233, 0.2)'
                 ctx.beginPath()
                 ctx.moveTo(xOff + 10, splashY + splashH - 10)
                 ctx.lineTo(xOff + cw - 10, splashY + 10)
@@ -207,7 +229,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
             // Kick plate (Full width, no inset)
             ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.12)' : 'rgba(0,0,0,0.06)'
             ctx.fillRect(xOff, cy + ch - KICK_H, cw, KICK_H)
-            ctx.strokeStyle = isSelected ? '#2563eb' : '#9ca3af'
+            ctx.strokeStyle = '#000000'
             ctx.lineWidth = 1
             ctx.strokeRect(xOff, cy + ch - KICK_H, cw, KICK_H)
 
@@ -241,6 +263,10 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
             const ah = (acc.height / cab.height) * innerH
             const isAccSel = acc.id === selectedAccId
 
+            const bounds = getAccessoryBounds(cab, acc)
+            const axPx = innerX + (bounds.x / cab.width) * innerW
+            const awPx = (bounds.width / cab.width) * innerW
+
             if (isAccSel) {
                 ctx.shadowColor = 'rgba(124,58,237,0.3)'
                 ctx.shadowBlur = 8
@@ -250,76 +276,101 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                 case 'shelf': {
                     ctx.setLineDash([4, 4])
                     ctx.fillStyle = isAccSel ? '#374151' : '#6b7280'
-                    ctx.fillRect(innerX, ay - 2, innerW, 4)
+                    ctx.fillRect(axPx, ay - 2, awPx, 4)
                     ctx.setLineDash([])
 
                     // shelf brackets
                     ctx.fillStyle = '#9ca3af'
-                    ctx.fillRect(innerX + 6, ay - 6, 3, 8)
-                    ctx.fillRect(innerX + innerW - 9, ay - 6, 3, 8)
+                    ctx.fillRect(axPx + 6, ay - 6, 3, 8)
+                    ctx.fillRect(axPx + awPx - 9, ay - 6, 3, 8)
                     break
                 }
                 case 'drawer': {
                     const dh = Math.max(ah, 16)
                     ctx.setLineDash([4, 4])
                     ctx.fillStyle = isAccSel ? 'rgba(124,58,237,0.12)' : 'rgba(124,58,237,0.06)'
-                    ctx.strokeStyle = isAccSel ? '#7c3aed' : '#8b5cf6'
-                    ctx.lineWidth = 1
+                    ctx.strokeStyle = '#000000'
+                    ctx.lineWidth = isAccSel ? 2 : 1
                     ctx.beginPath()
-                    ctx.roundRect(innerX + 2, ay, innerW - 4, dh, 2)
+                    ctx.roundRect(axPx + 2, ay, awPx - 4, dh, 2)
                     ctx.fill()
                     ctx.stroke()
                     ctx.setLineDash([])
 
                     // handle
                     const handleY = ay + dh / 2
-                    ctx.strokeStyle = isAccSel ? '#6d28d9' : '#7c3aed'
+                    ctx.strokeStyle = '#000000'
                     ctx.lineWidth = 2
                     ctx.beginPath()
-                    ctx.moveTo(innerX + innerW * 0.35, handleY)
-                    ctx.lineTo(innerX + innerW * 0.65, handleY)
+                    ctx.moveTo(axPx + awPx * 0.35, handleY)
+                    ctx.lineTo(axPx + awPx * 0.65, handleY)
                     ctx.stroke()
                     break
                 }
-                case 'door-left':
-                case 'door-right': {
-                    const isLeft = acc.type === 'door-left'
-                    const doorW = (acc.width !== undefined ? acc.width : cab.width) * SCALE - PANEL_T * 2
-                    const doorX = isLeft ? innerX + 2 : innerX + innerW - doorW - 2
+                case 'door': {
+                    const actualW = acc.width !== undefined ? acc.width : cab.width
+                    const doorWPx = innerW - 4
+                    const doorX = innerX + 2
 
                     ctx.fillStyle = isAccSel ? 'rgba(37,99,235,0.08)' : 'rgba(37,99,235,0.03)'
-                    ctx.strokeStyle = isAccSel ? '#2563eb' : '#3b82f6'
-                    ctx.lineWidth = 1
-                    ctx.beginPath()
-                    ctx.roundRect(doorX, innerTop, doorW, innerH, 2)
-                    ctx.fill()
-                    ctx.stroke()
-                    // handle
-                    const hx = isLeft ? doorX + doorW - 14 : doorX + 14
-                    ctx.strokeStyle = isAccSel ? '#1d4ed8' : '#2563eb'
-                    ctx.lineWidth = 2
-                    ctx.beginPath()
-                    ctx.moveTo(hx, innerTop + innerH * 0.42)
-                    ctx.lineTo(hx, innerTop + innerH * 0.58)
-                    ctx.stroke()
-                    // hinge dots
-                    const hingeX = isLeft ? doorX + 6 : doorX + doorW - 6
-                    ctx.fillStyle = '#9ca3af'
-                    ctx.beginPath()
-                    ctx.arc(hingeX, innerTop + 16, 2, 0, Math.PI * 2)
-                    ctx.fill()
-                    ctx.beginPath()
-                    ctx.arc(hingeX, innerTop + innerH - 16, 2, 0, Math.PI * 2)
-                    ctx.fill()
+                    ctx.strokeStyle = '#000000'
+                    ctx.lineWidth = isAccSel ? 2 : 1
+
+                    if (actualW >= 30) {
+                        const halfW = doorWPx / 2
+                        ctx.beginPath()
+                        ctx.roundRect(doorX, innerTop, halfW - 1, innerH, 2)
+                        ctx.roundRect(doorX + halfW + 1, innerTop, halfW - 1, innerH, 2)
+                        ctx.fill()
+                        ctx.stroke()
+                        // handles
+                        ctx.lineWidth = 2
+                        ctx.beginPath()
+                        ctx.moveTo(doorX + halfW - 8, innerTop + innerH * 0.42)
+                        ctx.lineTo(doorX + halfW - 8, innerTop + innerH * 0.58)
+                        ctx.moveTo(doorX + halfW + 8, innerTop + innerH * 0.42)
+                        ctx.lineTo(doorX + halfW + 8, innerTop + innerH * 0.58)
+                        ctx.stroke()
+                        // hinge dots
+                        ctx.fillStyle = '#000000'
+                        ctx.beginPath()
+                        ctx.arc(doorX + 6, innerTop + 16, 2, 0, Math.PI * 2)
+                        ctx.arc(doorX + 6, innerTop + innerH - 16, 2, 0, Math.PI * 2)
+                        ctx.arc(doorX + doorWPx - 6, innerTop + 16, 2, 0, Math.PI * 2)
+                        ctx.arc(doorX + doorWPx - 6, innerTop + innerH - 16, 2, 0, Math.PI * 2)
+                        ctx.fill()
+                    } else {
+                        const isLeft = acc.hinge !== 'right'
+                        ctx.beginPath()
+                        ctx.roundRect(doorX, innerTop, doorWPx, innerH, 2)
+                        ctx.fill()
+                        ctx.stroke()
+                        // handle
+                        const hx = isLeft ? doorX + doorWPx - 14 : doorX + 14
+                        ctx.lineWidth = 2
+                        ctx.beginPath()
+                        ctx.moveTo(hx, innerTop + innerH * 0.42)
+                        ctx.lineTo(hx, innerTop + innerH * 0.58)
+                        ctx.stroke()
+                        // hinge dots
+                        const hingeX = isLeft ? doorX + 6 : doorX + doorWPx - 6
+                        ctx.fillStyle = '#000000'
+                        ctx.beginPath()
+                        ctx.arc(hingeX, innerTop + 16, 2, 0, Math.PI * 2)
+                        ctx.fill()
+                        ctx.beginPath()
+                        ctx.arc(hingeX, innerTop + innerH - 16, 2, 0, Math.PI * 2)
+                        ctx.fill()
+                    }
                     break
                 }
                 case 'hanging-rod': {
                     ctx.setLineDash([2, 4])
-                    ctx.strokeStyle = isAccSel ? '#d97706' : '#f59e0b'
-                    ctx.lineWidth = 2
+                    ctx.strokeStyle = '#000000'
+                    ctx.lineWidth = isAccSel ? 2 : 1
                     ctx.beginPath()
-                    ctx.moveTo(innerX + 10, ay)
-                    ctx.lineTo(innerX + innerW - 10, ay)
+                    ctx.moveTo(axPx + 10, ay)
+                    ctx.lineTo(axPx + awPx - 10, ay)
                     ctx.stroke()
                     ctx.setLineDash([])
 
@@ -327,31 +378,31 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                     ctx.strokeStyle = '#9ca3af'
                     ctx.lineWidth = 1
                     ctx.beginPath()
-                    ctx.moveTo(innerX + 10, ay)
-                    ctx.lineTo(innerX + 10, ay - 10)
-                    ctx.moveTo(innerX + innerW - 10, ay)
-                    ctx.lineTo(innerX + innerW - 10, ay - 10)
+                    ctx.moveTo(axPx + 10, ay)
+                    ctx.lineTo(axPx + 10, ay - 10)
+                    ctx.moveTo(axPx + awPx - 10, ay)
+                    ctx.lineTo(axPx + awPx - 10, ay - 10)
                     ctx.stroke()
                     break
                 }
                 case 'led': {
                     ctx.fillStyle = isAccSel ? 'rgba(16,185,129,0.8)' : 'rgba(16,185,129,0.5)'
-                    ctx.fillRect(innerX + 2, ay, innerW - 4, 2)
+                    ctx.fillRect(axPx + 2, ay, awPx - 4, 2)
                     // glow
                     const ledGlow = ctx.createLinearGradient(0, ay - 6, 0, ay + 8)
                     ledGlow.addColorStop(0, 'rgba(16,185,129,0)')
                     ledGlow.addColorStop(0.5, 'rgba(16,185,129,0.08)')
                     ledGlow.addColorStop(1, 'rgba(16,185,129,0)')
                     ctx.fillStyle = ledGlow
-                    ctx.fillRect(innerX, ay - 6, innerW, 14)
+                    ctx.fillRect(axPx, ay - 6, awPx, 14)
                     break
                 }
                 case 'divider': {
                     const dx = innerX + (acc.x / cab.width) * innerW
-                    ctx.fillStyle = isAccSel ? '#e879f9' : '#c084fc'
+                    ctx.fillStyle = isAccSel ? '#c084fc' : '#e2e5ea'
                     ctx.fillRect(dx - 2, innerTop, 4, innerH)
-                    ctx.strokeStyle = isAccSel ? '#f0abfc' : '#a855f7'
-                    ctx.lineWidth = 0.5
+                    ctx.strokeStyle = '#000000'
+                    ctx.lineWidth = isAccSel ? 2 : 1
                     ctx.strokeRect(dx - 2, innerTop, 4, innerH)
                     break
                 }
@@ -412,8 +463,8 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
 }
 
 function drawDimLine(ctx, x1, y, x2, y2, label) {
-    ctx.strokeStyle = '#4a6080'
-    ctx.lineWidth = 0.8
+    ctx.strokeStyle = '#000000'
+    ctx.lineWidth = 1
     ctx.beginPath()
     // Ticks
     ctx.moveTo(x1, y - 4)
@@ -502,8 +553,7 @@ export default function EditorPage({ toast }) {
         const defaults = {
             'shelf': { type: 'shelf', y: cab.height / 2, height: 2, x: 0 },
             'drawer': { type: 'drawer', y: cab.height * 0.7, height: 20, x: 0 },
-            'door-left': { type: 'door-left', y: 0, height: cab.height, x: 0, width: cab.width },
-            'door-right': { type: 'door-right', y: 0, height: cab.height, x: 0, width: cab.width },
+            'door': { type: 'door', y: 0, height: cab.height, x: 0, width: cab.width, hinge: 'left' },
             'hanging-rod': { type: 'hanging-rod', y: cab.height * 0.35, height: 4, x: 0 },
             'led': { type: 'led', y: 8, height: 2, x: 0, placement: 'top' },
             'divider': { type: 'divider', y: 0, height: cab.height, x: cab.width / 2 },
@@ -516,15 +566,55 @@ export default function EditorPage({ toast }) {
     }
 
     const updateAccessory = (accId, field, value) => {
-        setCabinets(prev => prev.map((c, i) =>
-            i === selectedIdx
-                ? {
-                    ...c,
-                    accessories: c.accessories.map(a =>
-                        a.id === accId ? { ...a, [field]: Number(value) } : a
-                    )
-                } : c
-        ))
+        setCabinets(prev => prev.map((c, i) => {
+            if (i !== selectedIdx) return c
+            const newAccs = [...c.accessories]
+            const idx = newAccs.findIndex(a => a.id === accId)
+            if (idx === -1) return c
+
+            let acc = { ...newAccs[idx], [field]: (field === 'placement' || field === 'hinge') ? value : Number(value) }
+
+            // Auto-snapping logic for drawers
+            if (acc.type === 'drawer' && (field === 'y' || field === 'height')) {
+                const bounds = getAccessoryBounds(c, acc)
+                const others = c.accessories.filter(a => a.type === 'drawer' && a.id !== acc.id)
+                    .filter(a => {
+                        const ab = getAccessoryBounds(c, a)
+                        return Math.max(bounds.x, ab.x) < Math.min(bounds.x + bounds.width, ab.x + ab.width)
+                    }).sort((a, b) => a.y - b.y)
+
+                if (field === 'y') {
+                    const oldY = newAccs[idx].y
+                    let newY = acc.y
+                    if (newY > oldY) {
+                        for (let o of others) {
+                            if (o.y >= oldY + acc.height - 0.5 && newY + acc.height > o.y) {
+                                newY = o.y - acc.height; break
+                            }
+                        }
+                    } else if (newY < oldY) {
+                        for (let j = others.length - 1; j >= 0; j--) {
+                            let o = others[j]
+                            if (o.y + o.height <= oldY + 0.5 && newY < o.y + o.height) {
+                                newY = o.y + o.height; break
+                            }
+                        }
+                    }
+                    if (newY < 0) newY = 0
+                    if (newY + acc.height > c.height) newY = c.height - acc.height
+                    acc.y = newY
+                } else if (field === 'height') {
+                    let maxH = c.height - acc.y
+                    for (let o of others) {
+                        if (o.y >= acc.y) maxH = Math.min(maxH, o.y - acc.y)
+                    }
+                    if (acc.height > maxH) acc.height = maxH
+                }
+            }
+
+            newAccs[idx] = acc
+            return { ...c, accessories: newAccs }
+        }))
     }
 
     const removeAccessory = (accId) => {
@@ -554,7 +644,15 @@ export default function EditorPage({ toast }) {
 
     const loadProject = async (proj) => {
         const d = proj.data
-        if (d.cabinets) setCabinets(d.cabinets)
+        if (d.cabinets) {
+            d.cabinets.forEach(cab => {
+                cab.accessories?.forEach(acc => {
+                    if (acc.type === 'door-left') { acc.type = 'door'; acc.hinge = 'left' }
+                    if (acc.type === 'door-right') { acc.type = 'door'; acc.hinge = 'right' }
+                })
+            })
+            setCabinets(d.cabinets)
+        }
         if (d.ceilingH) setCeilingH(d.ceilingH)
         if (d.floorType) setFloorType(d.floorType)
         if (d.materials) setMaterials(d.materials)
@@ -570,6 +668,49 @@ export default function EditorPage({ toast }) {
         const projects = await projectService.getAll()
         setSavedProjects(projects)
         setShowLoadModal(true)
+    }
+
+    const exportJson = () => {
+        const data = { version: 1, projectName, cabinets, ceilingH, floorType, materials }
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${projectName || 'cabinet_config'}.json`
+        a.click()
+        URL.revokeObjectURL(url)
+        toast('設定檔已匯出', 'success')
+    }
+
+    const importJson = (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+            try {
+                const data = JSON.parse(ev.target.result)
+                if (data.cabinets) {
+                    data.cabinets.forEach(cab => {
+                        cab.accessories?.forEach(acc => {
+                            if (acc.type === 'door-left') { acc.type = 'door'; acc.hinge = 'left' }
+                            if (acc.type === 'door-right') { acc.type = 'door'; acc.hinge = 'right' }
+                        })
+                    })
+                    setCabinets(data.cabinets)
+                }
+                if (data.ceilingH) setCeilingH(data.ceilingH)
+                if (data.floorType) setFloorType(data.floorType)
+                if (data.materials) setMaterials(data.materials)
+                if (data.projectName) setProjectName(data.projectName)
+                setSelectedIdx(0)
+                setSelectedAccId(null)
+                toast('設定檔已匯入', 'success')
+            } catch (err) {
+                toast('無法讀取設定檔格式', 'error')
+            }
+        }
+        reader.readAsText(file)
+        e.target.value = ''
     }
 
     const doExport = () => {
@@ -796,7 +937,21 @@ export default function EditorPage({ toast }) {
                                 </select>
                             </div>
                         )}
-                        {(selAcc.type === 'door-left' || selAcc.type === 'door-right') && (
+                        {selAcc.type === 'door' && (selAcc.width !== undefined ? selAcc.width : cab.width) < 30 && (
+                            <div className="form-group" style={{ marginBottom: 16 }}>
+                                <label className="form-label" style={{ fontSize: 12 }}>開門方向</label>
+                                <select
+                                    className="form-select"
+                                    style={{ fontSize: 13, padding: '4px 8px' }}
+                                    value={selAcc.hinge || 'left'}
+                                    onChange={e => updateAccessory(selAcc.id, 'hinge', e.target.value)}
+                                >
+                                    <option value="left">左開</option>
+                                    <option value="right">右開</option>
+                                </select>
+                            </div>
+                        )}
+                        {selAcc.type === 'door' && (
                             <div className="slider-group">
                                 <div className="slider-label">
                                     <span>門片寬度</span>
@@ -808,18 +963,19 @@ export default function EditorPage({ toast }) {
                                 />
                             </div>
                         )}
-                        {selAcc.type === 'divider' ? (
+                        {selAcc.type !== 'door' && (
                             <div className="slider-group">
                                 <div className="slider-label">
                                     <span>X 位置</span>
-                                    <span className="slider-value">{Math.round(selAcc.x)} cm</span>
+                                    <span className="slider-value">{Math.round(selAcc.x || 0)} cm</span>
                                 </div>
-                                <input type="range" min="2" max={cab.width - 2} value={selAcc.x}
+                                <input type="range" min="0" max={cab.width - 2} value={selAcc.x || 0}
                                     onChange={e => updateAccessory(selAcc.id, 'x', e.target.value)}
                                     style={{ accentColor: accDef?.color }}
                                 />
                             </div>
-                        ) : selAcc.type !== 'shelf' && selAcc.type !== 'led' && selAcc.type !== 'hanging-rod' && (
+                        )}
+                        {selAcc.type !== 'shelf' && selAcc.type !== 'led' && selAcc.type !== 'hanging-rod' && selAcc.type !== 'divider' && (
                             <div className="slider-group">
                                 <div className="slider-label">
                                     <span>高度</span>
@@ -912,6 +1068,14 @@ export default function EditorPage({ toast }) {
                         <button className="btn btn-sm btn-secondary" onClick={openLoadModal} style={{ padding: '4px 10px', fontSize: 12 }}>
                             📂 載入
                         </button>
+                        <div style={{ width: 1, background: 'var(--border)', margin: '0 4px', height: 24 }} />
+                        <button className="btn btn-sm btn-secondary" onClick={exportJson} style={{ padding: '4px 10px', fontSize: 12 }}>
+                            ⬇️ 匯出
+                        </button>
+                        <label className="btn btn-sm btn-secondary" style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer', margin: 0 }}>
+                            ⬆️ 匯入
+                            <input type="file" accept=".json" style={{ display: 'none' }} onChange={importJson} />
+                        </label>
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 12 }}>
                         {cabinets.length} 個並排 | 天花板 {ceilingH}cm | 總寬 {cabinets.reduce((s, c) => s + c.width, 0)}cm
