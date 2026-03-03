@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { textureService } from '../services/db'
 
@@ -152,9 +152,38 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
 
         // ─── Cabinet body ───
         const isSplit = cab.type === 'split'
+        const isLowerOnly = cab.type === 'lower-only'
         const floorY = cabinetTopY + ceilingH * SCALE
 
-        if (isSplit) {
+        if (isLowerOnly) {
+            // Lower-only cabinet (e.g. TV cabinet)
+            const lowerH = (cab.lowerHeight || 50) * SCALE
+            const lowerY = floorY - lowerH
+            ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.04)' : 'rgba(0,0,0,0.015)'
+            ctx.fillRect(xOff + PANEL_T, lowerY + PANEL_T, cw - PANEL_T * 2, lowerH - PANEL_T - KICK_H)
+
+            ctx.fillStyle = isSelected ? '#2563eb' : '#6b7280'
+            ctx.fillRect(xOff, lowerY, PANEL_T, lowerH - KICK_H) // L
+            ctx.fillRect(xOff + cw - PANEL_T, lowerY, PANEL_T, lowerH - KICK_H) // R
+            ctx.fillRect(xOff, lowerY, cw, PANEL_T) // T
+            ctx.fillRect(xOff, lowerY + lowerH - KICK_H - PANEL_T, cw, PANEL_T) // B
+
+            // Kick plate
+            ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.12)' : 'rgba(0,0,0,0.06)'
+            ctx.fillRect(xOff, lowerY + lowerH - KICK_H, cw, KICK_H)
+            ctx.strokeStyle = '#000000'
+            ctx.lineWidth = 1
+            ctx.strokeRect(xOff, lowerY + lowerH - KICK_H, cw, KICK_H)
+
+            if (isSelected) {
+                ctx.shadowColor = 'rgba(37,99,235,0.25)'
+                ctx.shadowBlur = 12
+                ctx.strokeStyle = '#2563eb'
+                ctx.lineWidth = 2
+                ctx.strokeRect(xOff - 1, lowerY - 1, cw + 2, lowerH + 2)
+                ctx.shadowBlur = 0
+            }
+        } else if (isSplit) {
             const lowerH = (cab.lowerHeight || 86) * SCALE
             const upperH = (cab.upperHeight || 80) * SCALE
             const upperElev = (cab.upperElevation || 150) * SCALE
@@ -250,7 +279,11 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         const innerW = cw - PANEL_T * 2
 
         let innerTop, innerH
-        if (isSplit) {
+        if (isLowerOnly) {
+            const lowerH = (cab.lowerHeight || 50) * SCALE
+            innerTop = floorY - lowerH + PANEL_T
+            innerH = lowerH - PANEL_T - KICK_H
+        } else if (isSplit) {
             const totalH = (cab.upperElevation || 150) * SCALE + (cab.upperHeight || 80) * SCALE
             innerTop = floorY - totalH + PANEL_T
             innerH = totalH - PANEL_T - KICK_H
@@ -517,26 +550,62 @@ function exportCanvasAsJpeg(canvas) {
     link.click()
 }
 
+// ─── Preset Templates ───
+const CABINET_TEMPLATES = [
+    { label: '📺 電視櫃', type: 'lower-only', width: 120, height: 240, lowerHeight: 50 },
+    { label: '📚 書櫃', type: 'tall', width: 80, height: 200, lowerHeight: 86 },
+    { label: '👔 衣櫃', type: 'tall', width: 60, height: 240, lowerHeight: 86, withRod: true },
+]
+
+// ─── sessionStorage helpers ───
+function saveEditorState(data) {
+    try { sessionStorage.setItem('editor_state', JSON.stringify(data)) } catch { /* ok */ }
+}
+function loadEditorState() {
+    try {
+        const s = sessionStorage.getItem('editor_state')
+        return s ? JSON.parse(s) : null
+    } catch { return null }
+}
+
 export default function EditorPage({ toast }) {
     const navigate = useNavigate()
     const canvasRef = useRef(null)
     const wrapperRef = useRef(null)
+
+    // Restore from sessionStorage if available
+    const savedState = useRef(loadEditorState())
+    const init = savedState.current
+
     const [zoom, setZoom] = useState(1)
-    const [ceilingH, setCeilingH] = useState(240)
+    const [ceilingH, setCeilingH] = useState(init?.ceilingH ?? 240)
     const [selectedIdx, setSelectedIdx] = useState(0)
     const [selectedAccId, setSelectedAccId] = useState(null)
-    const [floorType, setFloorType] = useState('wood-dark')
-    const [cabinets, setCabinets] = useState([
+    const [floorType, setFloorType] = useState(init?.floorType ?? 'wood-dark')
+    const [cabinets, setCabinets] = useState(init?.cabinets ?? [
         { id: 1, name: '櫃體 1', width: 60, height: 240, type: 'tall', lowerHeight: 86, upperHeight: 80, upperElevation: 150, hasBacksplash: true, accessories: [] }
     ])
     const [textures, setTextures] = useState([])
-    const [materials, setMaterials] = useState({ exterior: '', interior: '', door: '', drawer: '' })
-    const [projectName, setProjectName] = useState('未命名專案')
+    const [materials, setMaterials] = useState(init?.materials ?? { exterior: '', interior: '', door: '', drawer: '' })
+    const [projectName, setProjectName] = useState(init?.projectName ?? '未命名專案')
 
     // Enforce max cabinet height by ceilingH
     useEffect(() => {
         setCabinets(prev => prev.map(c => c.height > ceilingH ? { ...c, height: ceilingH } : c))
     }, [ceilingH])
+
+    // Auto-save to sessionStorage whenever state changes
+    useEffect(() => {
+        saveEditorState({ cabinets, ceilingH, floorType, materials, projectName })
+        // Also update sketch for renderer
+        if (canvasRef.current) {
+            try {
+                sessionStorage.setItem('cabinet_sketch', canvasRef.current.toDataURL('image/jpeg', 0.9).split(',')[1])
+                sessionStorage.setItem('cabinet_materials', JSON.stringify(materials))
+                sessionStorage.setItem('cabinet_config', JSON.stringify({ cabinets, ceilingH, floorType, materials }))
+            } catch { /* ok */ }
+        }
+    }, [cabinets, ceilingH, floorType, materials, projectName])
 
     // Auto-fit to screen initially and when size drastically changes
     useEffect(() => {
@@ -562,8 +631,20 @@ export default function EditorPage({ toast }) {
 
     useEffect(() => { redraw() }, [redraw])
 
-    const addCabinet = () => {
-        const newCab = { id: uid(), name: `櫃體 ${cabinets.length + 1}`, width: 60, height: 240, type: 'tall', lowerHeight: 86, upperHeight: 80, upperElevation: 150, hasBacksplash: true, accessories: [] }
+    const addCabinet = (template) => {
+        const cur = cabinets[selectedIdx] || cabinets[0]
+        const newCab = {
+            id: uid(),
+            name: template?.label ? template.label.replace(/^[^\s]+ /, '') : `櫃體 ${cabinets.length + 1}`,
+            width: template?.width ?? cur?.width ?? 60,
+            height: template?.height ?? cur?.height ?? 240,
+            type: template?.type ?? cur?.type ?? 'tall',
+            lowerHeight: template?.lowerHeight ?? cur?.lowerHeight ?? 86,
+            upperHeight: cur?.upperHeight ?? 80,
+            upperElevation: cur?.upperElevation ?? 150,
+            hasBacksplash: cur?.hasBacksplash ?? true,
+            accessories: template?.withRod ? [{ id: uid(), type: 'hanging-rod', y: 60, height: 4, x: 0 }] : []
+        }
         setCabinets(prev => [...prev, newCab])
         setSelectedIdx(cabinets.length)
         setSelectedAccId(null)
@@ -712,8 +793,7 @@ export default function EditorPage({ toast }) {
             sessionStorage.setItem('cabinet_config', JSON.stringify({
                 cabinets, ceilingH, floorType, materials
             }))
-            toast('線稿已匯出，即將前往 AI 渲染頁', 'success')
-            navigate('/renderer')
+            toast('線稿已匯出，可至 AI 渲染頁渲染', 'success')
         }
     }
 
@@ -743,12 +823,23 @@ export default function EditorPage({ toast }) {
                             >
                                 <span style={{ fontSize: 13, color: idx === selectedIdx ? 'var(--accent)' : 'var(--text-primary)' }}>
                                     🗄 櫃體 #{idx + 1} <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{c.width}×{c.height}</span>
+                                    <span style={{ marginLeft: 4, fontSize: 10, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,0,0,0.06)', color: 'var(--text-secondary)' }}>
+                                        {c.type === 'lower-only' ? '地櫃' : c.type === 'split' ? '上下櫃' : '高櫃'}
+                                    </span>
+                                    {c.accessories?.length > 0 && <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--text-muted)' }}>{c.accessories.length}配件</span>}
                                 </span>
                                 <button className="btn btn-danger btn-sm" onClick={e => { e.stopPropagation(); removeCabinet(idx) }}>×</button>
                             </div>
                         ))}
                     </div>
-                    <button className="btn btn-secondary" style={{ width: '100%' }} onClick={addCabinet}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                        {CABINET_TEMPLATES.map(t => (
+                            <button key={t.label} className="btn btn-secondary btn-sm" style={{ fontSize: 11 }} onClick={() => addCabinet(t)}>
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
+                    <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => addCabinet()}>
                         + 新增櫃體
                     </button>
                 </div>
@@ -759,7 +850,7 @@ export default function EditorPage({ toast }) {
                     <div className="slider-group">
                         <div className="slider-label">
                             <span>天花板高度</span>
-                            <span className="slider-value">{ceilingH} cm</span>
+                            <span className="slider-value"><input type="number" min="200" max="300" value={ceilingH} onChange={e => setCeilingH(Math.min(300, Math.max(200, Number(e.target.value) || 200)))} style={{ width: 48, fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 4px', textAlign: 'right' }} /> cm</span>
                         </div>
                         <input type="range" min="200" max="300" value={ceilingH} onChange={e => setCeilingH(Number(e.target.value))} />
                     </div>
@@ -780,9 +871,10 @@ export default function EditorPage({ toast }) {
                         <div className="slider-group">
                             <div className="slider-label">
                                 <span>寬度</span>
-                                <span className="slider-value">{cab.width} cm</span>
+                                <span className="slider-value"><input type="number" min="30" max="180" value={cab.width} onChange={e => updateCabinet('width', Math.min(180, Math.max(30, Number(e.target.value) || 30)))} style={{ width: 48, fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 4px', textAlign: 'right' }} /> cm</span>
                             </div>
-                            <input type="range" min="30" max="120" value={cab.width} onChange={e => updateCabinet('width', e.target.value)} />
+                            <input type="range" min="30" max="180" value={cab.width} onChange={e => updateCabinet('width', e.target.value)} />
+                            {cab.width > 120 && <p style={{ fontSize: 11, color: '#ef4444', margin: '4px 0 0' }}>⚠ 超過 120cm 建議拆分為多個櫃體</p>}
                         </div>
 
                         <div className="slider-group" style={{ marginBottom: 12 }}>
@@ -791,28 +883,40 @@ export default function EditorPage({ toast }) {
                             </div>
                             <div className="radio-group" style={{ marginTop: 4 }}>
                                 <label className="radio-label">
-                                    <input type="radio" value="tall" checked={cab.type !== 'split'} onChange={() => updateCabinet('type', 'tall')} />
+                                    <input type="radio" value="tall" checked={cab.type === 'tall'} onChange={() => updateCabinet('type', 'tall')} />
                                     <span>高櫃</span>
                                 </label>
                                 <label className="radio-label">
                                     <input type="radio" value="split" checked={cab.type === 'split'} onChange={() => updateCabinet('type', 'split')} />
                                     <span>上下櫃</span>
                                 </label>
+                                <label className="radio-label">
+                                    <input type="radio" value="lower-only" checked={cab.type === 'lower-only'} onChange={() => updateCabinet('type', 'lower-only')} />
+                                    <span>地櫃</span>
+                                </label>
                             </div>
                         </div>
 
-                        {cab.type === 'split' ? (
+                        {cab.type === 'lower-only' ? (
+                            <div className="slider-group">
+                                <div className="slider-label">
+                                    <span>地櫃高度</span>
+                                    <span className="slider-value"><input type="number" min="20" max="120" value={cab.lowerHeight || 50} onChange={e => updateCabinet('lowerHeight', Math.min(120, Math.max(20, Number(e.target.value) || 20)))} style={{ width: 48, fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 4px', textAlign: 'right' }} /> cm</span>
+                                </div>
+                                <input type="range" min="20" max="120" value={cab.lowerHeight || 50} onChange={e => updateCabinet('lowerHeight', e.target.value)} />
+                            </div>
+                        ) : cab.type === 'split' ? (
                             <>
                                 <div className="slider-group">
-                                    <div className="slider-label"><span>下櫃高度</span><span className="slider-value">{cab.lowerHeight || 86} cm</span></div>
+                                    <div className="slider-label"><span>下櫃高度</span><span className="slider-value"><input type="number" min="40" max="150" value={cab.lowerHeight || 86} onChange={e => updateCabinet('lowerHeight', Math.min(150, Math.max(40, Number(e.target.value) || 40)))} style={{ width: 48, fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 4px', textAlign: 'right' }} /> cm</span></div>
                                     <input type="range" min="40" max="150" value={cab.lowerHeight || 86} onChange={e => updateCabinet('lowerHeight', e.target.value)} />
                                 </div>
                                 <div className="slider-group">
-                                    <div className="slider-label"><span>吊櫃離地高度</span><span className="slider-value">{cab.upperElevation || 150} cm</span></div>
+                                    <div className="slider-label"><span>吊櫃離地高度</span><span className="slider-value"><input type="number" min={cab.lowerHeight || 86} max="220" value={cab.upperElevation || 150} onChange={e => updateCabinet('upperElevation', Math.min(220, Math.max(cab.lowerHeight || 86, Number(e.target.value) || 86)))} style={{ width: 48, fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 4px', textAlign: 'right' }} /> cm</span></div>
                                     <input type="range" min={cab.lowerHeight || 86} max="220" value={cab.upperElevation || 150} onChange={e => updateCabinet('upperElevation', e.target.value)} />
                                 </div>
                                 <div className="slider-group">
-                                    <div className="slider-label"><span>上吊櫃高度</span><span className="slider-value">{cab.upperHeight || 80} cm</span></div>
+                                    <div className="slider-label"><span>上吊櫃高度</span><span className="slider-value"><input type="number" min="30" max="150" value={cab.upperHeight || 80} onChange={e => updateCabinet('upperHeight', Math.min(150, Math.max(30, Number(e.target.value) || 30)))} style={{ width: 48, fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 4px', textAlign: 'right' }} /> cm</span></div>
                                     <input type="range" min="30" max="150" value={cab.upperHeight || 80} onChange={e => updateCabinet('upperHeight', e.target.value)} />
                                 </div>
                                 <div className="slider-group" style={{ marginTop: 8, marginBottom: 8 }}>
@@ -826,7 +930,7 @@ export default function EditorPage({ toast }) {
                             <div className="slider-group">
                                 <div className="slider-label">
                                     <span>櫃體高度</span>
-                                    <span className="slider-value">{cab.height} cm</span>
+                                    <span className="slider-value"><input type="number" min="30" max={ceilingH} value={cab.height} onChange={e => { let h = Math.min(ceilingH, Math.max(30, Number(e.target.value) || 30)); updateCabinet('height', h); }} style={{ width: 48, fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 4px', textAlign: 'right' }} /> cm</span>
                                 </div>
                                 <input type="range" min="30" max={ceilingH} value={cab.height} onChange={e => {
                                     let h = Number(e.target.value);
@@ -1099,3 +1203,4 @@ export default function EditorPage({ toast }) {
         </div>
     )
 }
+
