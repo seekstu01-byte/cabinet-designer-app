@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { generateCabinetRender, buildPrompt } from '../services/geminiApi'
-import { vendorSpecsService } from '../services/db'
+import { vendorSpecsService, renderHistoryService } from '../services/db'
 
 const FLOOR_OPTIONS = [
     { value: 'polished', label: '🪨 拋光磁磚', desc: '光澤感，現代風' },
@@ -38,6 +38,7 @@ export default function RendererPage({ toast }) {
         if (config) {
             try { setCabinetConfig(JSON.parse(config)) } catch { /* ok */ }
         }
+        renderHistoryService.getAll().then(setHistory)
     }, [])
 
     // Rebuild prompt when settings change
@@ -73,12 +74,14 @@ export default function RendererPage({ toast }) {
                 prompt: promptText
             })
             setResult(res)
-            // Add to history (keep last 3)
-            setHistory(prev => [{
+            // Add to history in DB
+            const newHistoryItem = {
                 imageData: res.imageData,
-                mimeType: res.mimeType,
-                timestamp: Date.now()
-            }, ...prev].slice(0, 5))
+                mimeType: res.mimeType
+            }
+            await renderHistoryService.add(newHistoryItem)
+            const updatedHistory = await renderHistoryService.getAll()
+            setHistory(updatedHistory)
             toast('🎨 渲染完成！', 'success')
         } catch (err) {
             toast(`渲染失敗：${err.message}`, 'error')

@@ -73,6 +73,7 @@ const ACC_LABELS = {
     'hanging-rod': '掛衣桿',
     'led': 'LED 燈條',
     'divider': '隔板',
+    'tray': '活動抽盤',
 }
 
 export function buildPrompt({ cabinets, materials, vendorSpecs, environment }) {
@@ -125,8 +126,10 @@ export function buildPrompt({ cabinets, materials, vendorSpecs, environment }) {
                 cabinetDesc += `    - 下櫃高度 ${cab.lowerHeight || 86}cm，上吊櫃高度 ${cab.upperHeight || 80}cm，吊櫃底端離地高度 ${cab.upperElevation || 150}cm。\n`
                 cabinetDesc += `    - 內含配件：${accText}\n`
                 if (cab.hasBacksplash !== false) cabinetDesc += `    - 上下櫃中央區域包含玻璃烤漆背板。\n`
+            } else if (cab.type === 'open') {
+                cabinetDesc += `  櫃體 ${idx + 1} (${cab.name || '未命名'})：開放式無門片系統櫃設計，寬 ${cab.width}cm × 高 ${cab.height}cm，內含 ${accText}\n`
             } else {
-                cabinetDesc += `  櫃體 ${idx + 1} (${cab.name || '未命名'})：高櫃設計，寬 ${cab.width}cm × 高 ${cab.height}cm，內含 ${accText}\n`
+                cabinetDesc += `  櫃體 ${idx + 1} (${cab.name || '未命名'})：標準高櫃設計，寬 ${cab.width}cm × 高 ${cab.height}cm，內含 ${accText}\n`
             }
         })
     } else {

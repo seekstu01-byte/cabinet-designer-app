@@ -17,6 +17,7 @@ const ACCESSORY_TYPES = [
     { type: 'hanging-rod', label: '掛衣桿', icon: '〡', color: '#f59e0b' },
     { type: 'led', label: 'LED 燈條', icon: '💡', color: '#10b981' },
     { type: 'divider', label: '隔板', icon: '┃', color: '#e879f9' },
+    { type: 'tray', label: '抽盤', icon: '⎍', color: '#ec4899' },
 ]
 
 const FLOOR_TYPES = [
@@ -324,6 +325,23 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                     ctx.fillText(`Y:${Math.round(acc.y * 10)}`, axPx + 2, ay - 8)
                     break
                 }
+                case 'tray': {
+                    ctx.setLineDash([4, 4])
+                    ctx.fillStyle = isAccSel ? '#db2777' : '#f472b6'
+                    ctx.fillRect(axPx, ay - 3, awPx, 6)
+                    ctx.setLineDash([])
+
+                    // rails
+                    ctx.fillStyle = '#94a3b8'
+                    ctx.fillRect(axPx, ay - 4, 8, 8)
+                    ctx.fillRect(axPx + awPx - 8, ay - 4, 8, 8)
+
+                    ctx.fillStyle = '#6b7280'
+                    ctx.font = '9px Inter'
+                    ctx.textAlign = 'left'
+                    ctx.fillText(`Y:${Math.round(acc.y * 10)}`, axPx + 12, ay - 8)
+                    break
+                }
                 case 'drawer': {
                     const dh = Math.max(ah, 16)
                     ctx.setLineDash([4, 4])
@@ -555,6 +573,7 @@ const CABINET_TEMPLATES = [
     { label: '📺 電視櫃', type: 'lower-only', width: 120, height: 240, lowerHeight: 50 },
     { label: '📚 書櫃', type: 'tall', width: 80, height: 200, lowerHeight: 86 },
     { label: '👔 衣櫃', type: 'tall', width: 60, height: 240, lowerHeight: 86, withRod: true },
+    { label: '🔌 電器櫃', type: 'open', width: 60, height: 240 }
 ]
 
 // ─── sessionStorage helpers ───
@@ -643,7 +662,12 @@ export default function EditorPage({ toast }) {
             upperHeight: cur?.upperHeight ?? 80,
             upperElevation: cur?.upperElevation ?? 150,
             hasBacksplash: cur?.hasBacksplash ?? true,
-            accessories: template?.withRod ? [{ id: uid(), type: 'hanging-rod', y: 60, height: 4, x: 0 }] : []
+            accessories: template?.withRod ? [{ id: uid(), type: 'hanging-rod', y: 60, height: 4, x: 0 }] :
+                template?.type === 'open' ? [
+                    { id: uid(), type: 'shelf', y: 40, height: 2, x: 0 },
+                    { id: uid(), type: 'tray', y: 100, height: 3, x: 0 },
+                    { id: uid(), type: 'shelf', y: 160, height: 2, x: 0 }
+                ] : []
         }
         setCabinets(prev => [...prev, newCab])
         setSelectedIdx(cabinets.length)
@@ -670,6 +694,7 @@ export default function EditorPage({ toast }) {
         const defaults = {
             'shelf': { type: 'shelf', y: cab.height / 2, height: 2, x: 0 },
             'drawer': { type: 'drawer', y: cab.height * 0.7, height: 20, x: 0 },
+            'tray': { type: 'tray', y: cab.height * 0.5, height: 3, x: 0 },
             'door': { type: 'door', y: 0, height: cab.height, x: 0, width: cab.width, hinge: 'left' },
             'hanging-rod': { type: 'hanging-rod', y: cab.height * 0.35, height: 4, x: 0 },
             'led': { type: 'led', y: 8, height: 2, x: 0, placement: 'top' },
@@ -824,7 +849,7 @@ export default function EditorPage({ toast }) {
                                 <span style={{ fontSize: 13, color: idx === selectedIdx ? 'var(--accent)' : 'var(--text-primary)' }}>
                                     🗄 櫃體 #{idx + 1} <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{c.width}×{c.height}</span>
                                     <span style={{ marginLeft: 4, fontSize: 10, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,0,0,0.06)', color: 'var(--text-secondary)' }}>
-                                        {c.type === 'lower-only' ? '地櫃' : c.type === 'split' ? '上下櫃' : '高櫃'}
+                                        {c.type === 'lower-only' ? '地櫃' : c.type === 'split' ? '上下櫃' : c.type === 'open' ? '開放櫃' : '高櫃'}
                                     </span>
                                     {c.accessories?.length > 0 && <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--text-muted)' }}>{c.accessories.length}配件</span>}
                                 </span>
@@ -885,6 +910,10 @@ export default function EditorPage({ toast }) {
                                 <label className="radio-label">
                                     <input type="radio" value="tall" checked={cab.type === 'tall'} onChange={() => updateCabinet('type', 'tall')} />
                                     <span>高櫃</span>
+                                </label>
+                                <label className="radio-label">
+                                    <input type="radio" value="open" checked={cab.type === 'open'} onChange={() => updateCabinet('type', 'open')} />
+                                    <span>開放櫃</span>
                                 </label>
                                 <label className="radio-label">
                                     <input type="radio" value="split" checked={cab.type === 'split'} onChange={() => updateCabinet('type', 'split')} />

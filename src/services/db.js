@@ -8,6 +8,10 @@ db.version(1).stores({
     projects: '++id, name, data, createdAt, updatedAt'
 })
 
+db.version(2).stores({
+    renderHistory: '++id, timestamp'
+})
+
 // Helper functions
 export const textureService = {
     async getAll() {
@@ -64,5 +68,28 @@ export const projectService = {
     },
     async delete(id) {
         return db.projects.delete(id)
+    }
+}
+
+export const renderHistoryService = {
+    async getAll() {
+        return db.renderHistory.orderBy('timestamp').reverse().toArray()
+    },
+    async add(renderData) {
+        await db.renderHistory.add({
+            ...renderData,
+            timestamp: Date.now()
+        })
+        
+        // Keep only top 5 newest renders
+        const allCount = await db.renderHistory.count()
+        if (allCount > 5) {
+            const allItems = await db.renderHistory.orderBy('timestamp').reverse().toArray()
+            const toDelete = allItems.slice(5).map(item => item.id)
+            await db.renderHistory.bulkDelete(toDelete)
+        }
+    },
+    async clear() {
+        return db.renderHistory.clear()
     }
 }
