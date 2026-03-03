@@ -383,47 +383,47 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                     if (actualW >= 30) {
                         const halfW = doorWPx / 2
                         ctx.beginPath()
-                        ctx.roundRect(doorX, innerTop, halfW - 1, innerH, 2)
-                        ctx.roundRect(doorX + halfW + 1, innerTop, halfW - 1, innerH, 2)
+                        ctx.roundRect(doorX, ay, halfW - 1, ah, 2)
+                        ctx.roundRect(doorX + halfW + 1, ay, halfW - 1, ah, 2)
                         ctx.fill()
                         ctx.stroke()
                         // handles
                         ctx.lineWidth = 2
                         ctx.beginPath()
-                        ctx.moveTo(doorX + halfW - 8, innerTop + innerH * 0.42)
-                        ctx.lineTo(doorX + halfW - 8, innerTop + innerH * 0.58)
-                        ctx.moveTo(doorX + halfW + 8, innerTop + innerH * 0.42)
-                        ctx.lineTo(doorX + halfW + 8, innerTop + innerH * 0.58)
+                        ctx.moveTo(doorX + halfW - 8, ay + ah * 0.42)
+                        ctx.lineTo(doorX + halfW - 8, ay + ah * 0.58)
+                        ctx.moveTo(doorX + halfW + 8, ay + ah * 0.42)
+                        ctx.lineTo(doorX + halfW + 8, ay + ah * 0.58)
                         ctx.stroke()
                         // hinge dots
                         ctx.fillStyle = '#000000'
                         ctx.beginPath()
-                        ctx.arc(doorX + 6, innerTop + 16, 2, 0, Math.PI * 2)
-                        ctx.arc(doorX + 6, innerTop + innerH - 16, 2, 0, Math.PI * 2)
-                        ctx.arc(doorX + doorWPx - 6, innerTop + 16, 2, 0, Math.PI * 2)
-                        ctx.arc(doorX + doorWPx - 6, innerTop + innerH - 16, 2, 0, Math.PI * 2)
+                        ctx.arc(doorX + 6, ay + 16, 2, 0, Math.PI * 2)
+                        ctx.arc(doorX + 6, ay + ah - 16, 2, 0, Math.PI * 2)
+                        ctx.arc(doorX + doorWPx - 6, ay + 16, 2, 0, Math.PI * 2)
+                        ctx.arc(doorX + doorWPx - 6, ay + ah - 16, 2, 0, Math.PI * 2)
                         ctx.fill()
                     } else {
                         const isLeft = acc.hinge !== 'right'
                         ctx.beginPath()
-                        ctx.roundRect(doorX, innerTop, doorWPx, innerH, 2)
+                        ctx.roundRect(doorX, ay, doorWPx, ah, 2)
                         ctx.fill()
                         ctx.stroke()
                         // handle
                         const hx = isLeft ? doorX + doorWPx - 14 : doorX + 14
                         ctx.lineWidth = 2
                         ctx.beginPath()
-                        ctx.moveTo(hx, innerTop + innerH * 0.42)
-                        ctx.lineTo(hx, innerTop + innerH * 0.58)
+                        ctx.moveTo(hx, ay + ah * 0.42)
+                        ctx.lineTo(hx, ay + ah * 0.58)
                         ctx.stroke()
                         // hinge dots
                         const hingeX = isLeft ? doorX + 6 : doorX + doorWPx - 6
                         ctx.fillStyle = '#000000'
                         ctx.beginPath()
-                        ctx.arc(hingeX, innerTop + 16, 2, 0, Math.PI * 2)
+                        ctx.arc(hingeX, ay + 16, 2, 0, Math.PI * 2)
                         ctx.fill()
                         ctx.beginPath()
-                        ctx.arc(hingeX, innerTop + innerH - 16, 2, 0, Math.PI * 2)
+                        ctx.arc(hingeX, ay + ah - 16, 2, 0, Math.PI * 2)
                         ctx.fill()
                     }
                     break
