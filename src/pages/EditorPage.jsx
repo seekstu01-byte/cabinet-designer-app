@@ -258,15 +258,18 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
             ctx.fillRect(xOff, cy + ch - KICK_H - PANEL_T, cw, PANEL_T)
 
             // Diagonal cross lines to indicate "open / no back"
+            // Light background wash
+            ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.02)' : 'rgba(0,0,0,0.008)'
+            ctx.fillRect(xOff + PANEL_T, cy + PANEL_T, cw - PANEL_T * 2, ch - PANEL_T * 2 - KICK_H)
             ctx.save()
             ctx.beginPath()
             ctx.rect(xOff + PANEL_T, cy + PANEL_T, cw - PANEL_T * 2, ch - PANEL_T * 2 - KICK_H)
             ctx.clip()
-            ctx.setLineDash([6, 8])
-            ctx.strokeStyle = isSelected ? 'rgba(37,99,235,0.15)' : 'rgba(0,0,0,0.06)'
-            ctx.lineWidth = 1
+            ctx.setLineDash([8, 12])
+            ctx.strokeStyle = isSelected ? 'rgba(37,99,235,0.08)' : 'rgba(0,0,0,0.04)'
+            ctx.lineWidth = 0.5
             // Draw diagonal hatching to show it's open
-            const step = 24
+            const step = 40
             for (let d = -ch; d < cw + ch; d += step) {
                 ctx.beginPath()
                 ctx.moveTo(xOff + PANEL_T + d, cy + PANEL_T)
