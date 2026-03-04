@@ -154,6 +154,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
         // ─── Cabinet body ───
         const isSplit = cab.type === 'split'
         const isLowerOnly = cab.type === 'lower-only'
+        const isOpen = cab.type === 'open'
         const floorY = cabinetTopY + ceilingH * SCALE
 
         if (isLowerOnly) {
@@ -242,6 +243,68 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
                 ctx.strokeRect(xOff - 1, lowerY - 1, cw + 2, lowerH + 2)
                 ctx.shadowBlur = 0
             }
+        } else if (isOpen) {
+            // ─── Open cabinet: no back panel, dashed outline, visible shelves ───
+            // No back fill — open cabinet has no back panel
+
+            // Left panel
+            ctx.fillStyle = isSelected ? '#2563eb' : '#6b7280'
+            ctx.fillRect(xOff, cy, PANEL_T, ch - KICK_H)
+            // Right panel
+            ctx.fillRect(xOff + cw - PANEL_T, cy, PANEL_T, ch - KICK_H)
+            // Top panel
+            ctx.fillRect(xOff, cy, cw, PANEL_T)
+            // Bottom panel (above kick)
+            ctx.fillRect(xOff, cy + ch - KICK_H - PANEL_T, cw, PANEL_T)
+
+            // Diagonal cross lines to indicate "open / no back"
+            ctx.save()
+            ctx.beginPath()
+            ctx.rect(xOff + PANEL_T, cy + PANEL_T, cw - PANEL_T * 2, ch - PANEL_T * 2 - KICK_H)
+            ctx.clip()
+            ctx.setLineDash([6, 8])
+            ctx.strokeStyle = isSelected ? 'rgba(37,99,235,0.15)' : 'rgba(0,0,0,0.06)'
+            ctx.lineWidth = 1
+            // Draw diagonal hatching to show it's open
+            const step = 24
+            for (let d = -ch; d < cw + ch; d += step) {
+                ctx.beginPath()
+                ctx.moveTo(xOff + PANEL_T + d, cy + PANEL_T)
+                ctx.lineTo(xOff + PANEL_T + d + ch, cy + PANEL_T + ch)
+                ctx.stroke()
+            }
+            ctx.setLineDash([])
+            ctx.restore()
+
+            // "開放" label in center
+            ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.3)' : 'rgba(0,0,0,0.12)'
+            ctx.font = 'bold 14px Inter, sans-serif'
+            ctx.textAlign = 'center'
+            ctx.fillText('開放櫃', xOff + cw / 2, cy + (ch - KICK_H) / 2 + 4)
+
+            // Check if doors are attached — if so, draw a subtle overlay marker
+            const hasDoors = cab.accessories?.some(a => a.type === 'door')
+            if (hasDoors) {
+                ctx.fillStyle = 'rgba(37,99,235,0.06)'
+                ctx.fillRect(xOff + PANEL_T, cy + PANEL_T, cw - PANEL_T * 2, ch - PANEL_T * 2 - KICK_H)
+            }
+
+            // Kick plate
+            ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.12)' : 'rgba(0,0,0,0.06)'
+            ctx.fillRect(xOff, cy + ch - KICK_H, cw, KICK_H)
+            ctx.strokeStyle = '#000000'
+            ctx.lineWidth = 1
+            ctx.strokeRect(xOff, cy + ch - KICK_H, cw, KICK_H)
+
+            // Selection glow
+            if (isSelected) {
+                ctx.shadowColor = 'rgba(37,99,235,0.25)'
+                ctx.shadowBlur = 12
+                ctx.strokeStyle = '#2563eb'
+                ctx.lineWidth = 2
+                ctx.strokeRect(xOff - 1, cy - 1, cw + 2, ch + 2)
+                ctx.shadowBlur = 0
+            }
         } else {
             // Back fill
             ctx.fillStyle = isSelected ? 'rgba(37,99,235,0.04)' : 'rgba(0,0,0,0.015)'
@@ -289,6 +352,7 @@ function drawScene(canvas, cabinets, ceilingH, selectedIdx, selectedAccId, floor
             innerTop = floorY - totalH + PANEL_T
             innerH = totalH - PANEL_T - KICK_H
         } else {
+            // tall and open both use same inner dimensions
             innerTop = cy + PANEL_T
             innerH = ch - PANEL_T * 2 - KICK_H
         }
@@ -968,6 +1032,11 @@ export default function EditorPage({ toast }) {
                                 }} />
                             </div>
                         )}
+                        {cab.type === 'open' && (
+                            <p style={{ fontSize: 11, color: '#3b82f6', margin: '8px 0 0', padding: '6px 8px', background: 'rgba(59,130,246,0.06)', borderRadius: 6 }}>
+                                💡 開放櫃預設無門片。可在下方「新增配件」加入門片、層板等。
+                            </p>
+                        )}
                     </>}
                 </div>
 
@@ -1041,7 +1110,7 @@ export default function EditorPage({ toast }) {
                         <div className="slider-group">
                             <div className="slider-label">
                                 <span>Y 位置</span>
-                                <span className="slider-value">{Math.round(selAcc.y)} cm</span>
+                                <span className="slider-value"><input type="number" min="0" max={cab.height} value={Math.round(selAcc.y)} onChange={e => updateAccessory(selAcc.id, 'y', Math.min(cab.height, Math.max(0, Number(e.target.value) || 0)))} style={{ width: 48, fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 4px', textAlign: 'right' }} /> cm</span>
                             </div>
                             <input type="range" min="0" max={cab.height} value={selAcc.y}
                                 onChange={e => updateAccessory(selAcc.id, 'y', e.target.value)}
@@ -1064,37 +1133,52 @@ export default function EditorPage({ toast }) {
                                 </select>
                             </div>
                         )}
-                        {selAcc.type === 'door' && (selAcc.width !== undefined ? selAcc.width : cab.width) < 30 && (
-                            <div className="form-group" style={{ marginBottom: 16 }}>
-                                <label className="form-label" style={{ fontSize: 12 }}>開門方向</label>
-                                <select
-                                    className="form-select"
-                                    style={{ fontSize: 13, padding: '4px 8px' }}
-                                    value={selAcc.hinge || 'left'}
-                                    onChange={e => updateAccessory(selAcc.id, 'hinge', e.target.value)}
-                                >
-                                    <option value="left">左開</option>
-                                    <option value="right">右開</option>
-                                </select>
-                            </div>
-                        )}
                         {selAcc.type === 'door' && (
-                            <div className="slider-group">
-                                <div className="slider-label">
-                                    <span>門片寬度</span>
-                                    <span className="slider-value">{Math.round(selAcc.width !== undefined ? selAcc.width : cab.width)} cm</span>
+                            <>
+                                <div className="form-group" style={{ marginBottom: 12 }}>
+                                    <label className="form-label" style={{ fontSize: 12 }}>門片類型</label>
+                                    <div className="radio-group" style={{ marginTop: 4 }}>
+                                        <label className="radio-label">
+                                            <input type="radio" value="double" checked={(selAcc.width !== undefined ? selAcc.width : cab.width) >= 30} onChange={() => { if ((selAcc.width !== undefined ? selAcc.width : cab.width) < 30) updateAccessory(selAcc.id, 'width', Math.max(30, cab.width)); }} />
+                                            <span>對開門 (≥30cm)</span>
+                                        </label>
+                                        <label className="radio-label">
+                                            <input type="radio" value="single" checked={(selAcc.width !== undefined ? selAcc.width : cab.width) < 30} onChange={() => updateAccessory(selAcc.id, 'width', Math.min(29, cab.width))} />
+                                            <span>單開門 (&lt;30cm)</span>
+                                        </label>
+                                    </div>
                                 </div>
-                                <input type="range" min="10" max={cab.width} value={selAcc.width !== undefined ? selAcc.width : cab.width}
-                                    onChange={e => updateAccessory(selAcc.id, 'width', e.target.value)}
-                                    style={{ accentColor: accDef?.color }}
-                                />
-                            </div>
+                                {(selAcc.width !== undefined ? selAcc.width : cab.width) < 30 && (
+                                    <div className="form-group" style={{ marginBottom: 12 }}>
+                                        <label className="form-label" style={{ fontSize: 12 }}>開門方向</label>
+                                        <select
+                                            className="form-select"
+                                            style={{ fontSize: 13, padding: '4px 8px' }}
+                                            value={selAcc.hinge || 'left'}
+                                            onChange={e => updateAccessory(selAcc.id, 'hinge', e.target.value)}
+                                        >
+                                            <option value="left">左開</option>
+                                            <option value="right">右開</option>
+                                        </select>
+                                    </div>
+                                )}
+                                <div className="slider-group">
+                                    <div className="slider-label">
+                                        <span>門片寬度</span>
+                                        <span className="slider-value"><input type="number" min="10" max={cab.width} value={Math.round(selAcc.width !== undefined ? selAcc.width : cab.width)} onChange={e => updateAccessory(selAcc.id, 'width', Math.min(cab.width, Math.max(10, Number(e.target.value) || 10)))} style={{ width: 48, fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 4px', textAlign: 'right' }} /> cm</span>
+                                    </div>
+                                    <input type="range" min="10" max={cab.width} value={selAcc.width !== undefined ? selAcc.width : cab.width}
+                                        onChange={e => updateAccessory(selAcc.id, 'width', e.target.value)}
+                                        style={{ accentColor: accDef?.color }}
+                                    />
+                                </div>
+                            </>
                         )}
                         {selAcc.type !== 'door' && (
                             <div className="slider-group">
                                 <div className="slider-label">
                                     <span>X 位置</span>
-                                    <span className="slider-value">{Math.round(selAcc.x || 0)} cm</span>
+                                    <span className="slider-value"><input type="number" min="0" max={cab.width - 2} value={Math.round(selAcc.x || 0)} onChange={e => updateAccessory(selAcc.id, 'x', Math.min(cab.width - 2, Math.max(0, Number(e.target.value) || 0)))} style={{ width: 48, fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 4px', textAlign: 'right' }} /> cm</span>
                                 </div>
                                 <input type="range" min="0" max={cab.width - 2} value={selAcc.x || 0}
                                     onChange={e => updateAccessory(selAcc.id, 'x', e.target.value)}
@@ -1106,7 +1190,7 @@ export default function EditorPage({ toast }) {
                             <div className="slider-group">
                                 <div className="slider-label">
                                     <span>高度</span>
-                                    <span className="slider-value">{Math.round(selAcc.height)} cm</span>
+                                    <span className="slider-value"><input type="number" min="5" max={cab.height} value={Math.round(selAcc.height)} onChange={e => updateAccessory(selAcc.id, 'height', Math.min(cab.height, Math.max(5, Number(e.target.value) || 5)))} style={{ width: 48, fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 4px', textAlign: 'right' }} /> cm</span>
                                 </div>
                                 <input type="range" min="5" max={cab.height} value={selAcc.height}
                                     onChange={e => updateAccessory(selAcc.id, 'height', e.target.value)}
